@@ -1,0 +1,22 @@
+{
+  "default": {
+    "session": {
+      "long": {
+        "work": 50,
+        "rest": 10
+      },
+      "short": {
+        "work": 25,
+        "rest": 5
+      }
+    },
+    "super_rest": {
+      "work": 120,
+      "rest": 30
+    },
+    "screen_size": {
+      "width": 1920,
+      "height": 1080
+    }
+  }
+}

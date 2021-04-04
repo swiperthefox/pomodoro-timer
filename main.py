@@ -8,53 +8,37 @@ import db
 # The root window
 app = None
 
+import json
+
 class ApplicationConfig:
-    long_session = (50, 10)
-    short_session = (25, 5)
-    long_rest = 30
-    maximum_work_time_before_long_rest = 120
-    center = (1920//2, 1080//2)
-    @classmethod
-    def get_work_time(cls, long_session):
-        return cls.long_session[0] if long_session else cls.short_session[0]
-    
-    @classmethod
-    def get_rest_time(cls, long_session):
-        return cls.long_session[1] if long_session else cls.short_session[1]
+    def __init__(self, config_file) -> None:
+        with open(config_file) as f:
+            self.config = json.load(f)
 
-def show_progress_window(info, duration, geom, callback):
-    """Show a progress window, which shows the given `info` and a progress bar.
+    def get_work_time(self, long_session):
+        s_type = 'long' if long_session else 'short'
+        return self.config['session'][s_type]['work']
     
-    The window will show for `duration` minutes, after that, call the `callback` function.
-    """
-    window = gui.ProgressWindow(None, info, duration, geom)
-
-    def tick(win, start_time, duration):
-        elapsed = int((time.time() - start_time)/60)
-        win.progress.set(elapsed)
-        if elapsed < duration:
-            app.after(60100, tick, win, start_time, duration)
-        else:
-            window.destroy()
-            app.after(1, callback)
-    tick(window, time.time(), duration)
-    
+    def get_rest_time(self, long_session):
+        s_type = 'long' if long_session else 'short'
+        return self.config['session'][s_type]['rest']
+        
 running_pomodoro = False
 
 def start_pomodoro(task):
-    work_time = ApplicationConfig.get_work_time(task.long_session)
-    #set_window_position(app, center=False, top=False)
+    work_time = app_config.get_work_time(task.long_session)
+
     app.withdraw()
     global running_pomodoro
     running_pomodoro = True
     start_time = int(time.time())
     
-    show_progress_window(task.description, work_time, '+1640+0', 
-        lambda: end_of_pomodoro(task, start_time))
+    window = gui.ProgressWindow(app, task.description, work_time, geometry='+1640+0')
+    window.start(lambda: end_of_pomodoro(task, start_time))
 
 def end_of_pomodoro(task, start_time):
     # start rest period, show a rest window
-    break_time = ApplicationConfig.get_rest_time(task.long_session)
+    break_time = app_config.get_rest_time(task.long_session)
     start_rest(break_time)
     app.update_idletasks()
     
@@ -73,10 +57,11 @@ def start_rest(break_time):
     Take a %d minutes break.
     Walk a bit, drink some water, and relax.
     """
-    show_progress_window(
+    window = gui.ProgressWindow(app, 
         break_message_template % break_time,
         break_time,
-        '+600+280',
+        '+600+280')
+    window.start(
         app.deiconify
     )
 
@@ -88,13 +73,17 @@ def on_exit(app):
             app.quit()
     else:
         app.quit()
-        
+import tkinter as tk
+
+mode = 'dev'
 def main(db_name):
     global app
     db.open_database(db_name)
-    app, task_frame = gui.create_app_window("Pomodoro Timer", "+600+400")
+    title = "Pomodoro Timer" + ("(dev)" if mode=='dev' else "")
+    app, task_frame = gui.create_app_window(title, "+600+400")
     app.protocol('WM_DELETE_WINDOW', lambda: on_exit(app))
-    task_list = tasks.load_task_list()
+    task_list = tasks.TaskList()
+    task_list.load_from_db()
     task_frame.attach_task_list(task_list, start_pomodoro)
     app.mainloop()
 
@@ -103,5 +92,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         db_name = sys.argv[1]
     else:
-        db_name = 'pomodoru.sqlite'
+        db_name = 'test.sqlite'
+    app_config = ApplicationConfig('config.json')
+    print(app_config)
     main(db_name)

@@ -34,3 +34,11 @@ move it, click it, etc.
 8. repeated events: tasks are set to repeat every week, month or year.
   - no "repeat every day", since such tasks can stay on the task list, as long as it is not done.
   - if we want an event to repeat every week, the we don't want it to stay there for the whole week.
+
+9. Anti procrastination by ugly!
+  - show rotten tomato on the day of deadline
+  
+   ___________________
+ _/_|[ ][ ][ ][ ][ ] | - -
+( []    City Bus     | - -
+=--OO----------------OO--=dwb

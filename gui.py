@@ -1,12 +1,14 @@
+from observable import Observable
 from tkinter.simpledialog import Dialog
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import font
+import time
 
 import tasks
 from asset import get_asset_pool, AssetPool
 
-def grid_layout(children_grid, start_row = 0, **opt):
+def grid_layout(parent, children_grid, start_row = tk.END, **opt):
     """Put a set of children in a grid layout.
     
     Repeated elements implies span, None for empty cell. For example:
@@ -17,6 +19,9 @@ def grid_layout(children_grid, start_row = 0, **opt):
      
     means a.grid(row=0, col=0, rowspan=2, columnspan=2), b.grid(row=0,col=2), ....
     """
+    if start_row == tk.END:
+        start_row = parent.grid_size()[1]
+
     seen = set()
     for r, row in enumerate(children_grid):
         for c, w in enumerate(row):
@@ -82,7 +87,7 @@ class SessionNoteDialog(Dialog):
         task_content_label = ttk.Label(master, text=self.task_content)
         t_label = ttk.Label(master, text="Short note about the session (ESC to cancel)")
         self.t_entry = tk.Text(master, width=60, height=3)
-        grid_layout([[task_content_label], [t_label], [self.t_entry]])
+        grid_layout(master, [[task_content_label], [t_label], [self.t_entry]])
         return self.t_entry
         
     def apply(self):
@@ -118,7 +123,7 @@ class NewTaskDialog(Dialog):
                 [c_label,              tomatobox],
                 [session_type_label,   long_session_btn],
                 [error_label,          error_label]]
-        grid_layout(rows, 0, padx=3, pady=5)
+        grid_layout(master, rows, 0, padx=3, pady=5)
         return self.t_entry
         
     def apply(self):
@@ -139,6 +144,7 @@ class NewTaskDialog(Dialog):
 
 class ProgressWindow(tk.Toplevel):
     def __init__(self, master, info, duration, geometry=None):
+        self.duration = duration
         tk.Toplevel.__init__(self, master)
         self.protocol('WM_DELETE_WINDOW', lambda: 1)
         if geometry:
@@ -147,24 +153,40 @@ class ProgressWindow(tk.Toplevel):
         frame = ttk.Frame(self, padding=(10, 10, 10, 10))
         frame.grid(row=0, column=0, sticky='news')
         
-        ttk.Label(frame, text=info, anchor=tk.W)\
+        self.text = tk.StringVar(value=info)
+        ttk.Label(frame, textvariable=self.text, anchor=tk.W)\
             .grid(row=1, column=1)
         self.progress = tk.IntVar()
         ttk.Progressbar(frame, mode='determinate', variable=self.progress, maximum=duration)\
             .grid(row=2, sticky='news', column=1)
 
-def create_task(master):
-    ntDialog = NewTaskDialog(master, "New Task")
-    
-    if ntDialog.result:
-        return tasks.Task(**ntDialog.result)
+    def start(self, callback):
+        start_time = time.time()
+        def tick():
+            elapsed = int((time.time() - start_time)/60)
+            self.progress.set(elapsed)
+            if elapsed < self.duration:
+                self.after(60100, tick)
+            else:
+                self.master.after(1, callback) # callback will be called, even after self is destroyed.
+                self.destroy()
+        tick()
+    def update_info(self, info):
+        self.text.set(info)
+        
+def create_new_task(master):
+    task_data = NewTaskDialog(master, "New Task").result
+    if task_data:
+        return tasks.Task(**task_data)
     else:
         return None
         
 class TaskListFrame(tk.Frame):
     def __init__(self, master, **grid_opt):
         super().__init__(master)
+        self.task_list = None
         self.grid_opt = grid_opt
+        self.asset_pool = get_asset_pool(self)
         self.columnconfigure(2, weight=4)
         self.columnconfigure(3, weight=1)
     
@@ -174,22 +196,27 @@ class TaskListFrame(tk.Frame):
             
     def attach_task_list(self, task_list, start_pomodoro):
         self.clear()
-        asset_pool = get_asset_pool(self)
+        if self.task_list:
+            self.task_list.unsubscribe('change', observer=self.render_task_list)
+            self.task_list.unsubscribe('add', observer=self.render_task)
+            
+        task_list.subscribe('change', self.render_task_list)
+        task_list.subscribe('add', self.render_task)
+        self.task_list = task_list
+        self.start_pomodoro_command = start_pomodoro
+        self.render_header()
+        self.render_task_list(task_list.tasks)
+        
+    def render_header(self):
+        # newTaskBtn handler
+        def add_task():
+            new_task = create_new_task(self.winfo_toplevel())
+            if new_task:
+                self.task_list.add_task(new_task)
+        asset_pool = get_asset_pool(self)        
         
         rows = []
-        
         # header widgets
-        def add_task():
-            task_data = NewTaskDialog(self.winfo_toplevel(), "New Task").result
-    
-            if task_data:
-                new_task = tasks.Task(**task_data)
-                
-                task_list.add_task(new_task)
-                _, row = self.grid_size()
-                grid_layout([self.render_task(new_task, asset_pool, start_pomodoro)], 
-                    start_row=row, **self.grid_opt)
-                
         newTaskBtn = ttk.Button(self, image=asset_pool.get_image('new_icon'),
             command=add_task)
         done_label = ttk.Label(self, text="Done")
@@ -199,21 +226,18 @@ class TaskListFrame(tk.Frame):
         rows.append([newTaskBtn, done_label, title, pomodoro_header])
         rows.append([ttk.Separator(self, orient=tk.HORIZONTAL) for i in range(4)])
         
-        # render tasks
-        for task in task_list.tasks:
-            rows.append(self.render_task(task, asset_pool, start_pomodoro))
-        
-        #
-        grid_layout(rows, 0, **self.grid_opt)
-
+        grid_layout(self, rows, start_row=0)
     
-    def render_task(self, task, asset_pool, start_pomodoro):
-        # widgets
-        get_image = asset_pool.get_image
+    def render_task_list(self, tasks):
+        for task in tasks:
+            self.render_task(task)
+            
+    def render_task(self, task):
+        get_image = self.asset_pool.get_image
         
         start_btn = ttk.Button(self, image=get_image('clock'), 
             state = tk.NORMAL if task.can_start() else tk.DISABLED,
-            command=lambda: start_pomodoro(task))
+            command=lambda: self.start_pomodoro_command(task))
             
         state_var = tk.IntVar()
         done_btn = tk.Checkbutton(self, variable=state_var, 
@@ -229,14 +253,15 @@ class TaskListFrame(tk.Frame):
         def on_task_update(task):
             """update the presentation of the new task state"""
             font_type = 'strikeout' if task.done else 'normal'
-            contentLabel.config(font = asset_pool.get_font(font_type))
+            contentLabel.config(font = self.asset_pool.get_font(font_type))
             start_btn.config(state = tk.NORMAL if task.can_start() else tk.DISABLED)
             tomato_list = ([get_image('tomato_red')]*task.progress + 
                 [get_image('tomato_green')]*task.remaining_pomodoro())
             tomatoes.config(tomatoes=tomato_list)
-        task.attach(on_task_update)
+        task.subscribe('change', on_task_update)
         
-        return [start_btn, done_btn, contentLabel, tomatoes]
+        row = [start_btn, done_btn, contentLabel, tomatoes]
+        grid_layout(self, [row], start_row=tk.END, **self.grid_opt)
 
 def create_app_window(title="", geom=""):
     """Create the root window, configure some stylings and assets.
@@ -245,6 +270,8 @@ def create_app_window(title="", geom=""):
     root.title(title or "Python Tkinter App")
     if geom:
         root.geometry(geom)
+    root.rowconfigure(0,weight=1)
+    root.columnconfigure(0,weight=1)
     
     # set appearance
     style = ttk.Style()

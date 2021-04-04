@@ -59,28 +59,31 @@ class Observable:
     def _observers(self):
         return {}
     
-    def attach(self, observer) -> None:
+    def subscribe(self, topic, observer) -> None:
         """
         Attach an observer to the subject.
         """
-        self._observers[self._observer_id] = observer
+        self._observers.setdefault(topic, {})[self._observer_id] = observer
         self._observer_id += 1
 
-    def detach(self, *, oid=None, observer=None):
+    def unsubscribe(self, topic, *, oid=None, observer=None):
         """
         Detach an observer from the subject.
         """
-        if oid in self._observers:
-            self._observers.pop(oid)
+        if topic not in self._observers:
+            return
+        observers = self._observers[topic]
+        if oid in observers:
+            observers.pop(oid)
         elif observer is not None:
-            keys = list(self._observers.keys())
+            keys = list(observers.keys())
             for k in keys:
-                if self._observers[k] == observer:
-                    self._observers.pop(k)
+                if observers[k] == observer:
+                    observers.pop(k)
 
-    def notify(self):
+    def notify(self, topic, *args):
         """
         Notify all observers about an event.
         """
-        for obsever in self._observers.values():
-            obsever(self)
+        for obsever in self._observers.get(topic, {}).values():
+            obsever(*args)
