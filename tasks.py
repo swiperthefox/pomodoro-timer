@@ -22,7 +22,6 @@ class Task(Observable):
         
     def incr_progress(self):
         self.progress += 1
-        db.update_task(self, progress=self.progress)
         self.notify('change', self)
         
     def can_start(self):
@@ -43,6 +42,8 @@ class TaskList(Observable):
     def load_from_db(self):
         tasks_data = db.load_task_list()
         self.tasks = [Task(**data) for data in tasks_data]
+        for task in self.tasks:
+            task.progress = 0
         self.notify('change', self.tasks)
             
     def add_task(self, task):
