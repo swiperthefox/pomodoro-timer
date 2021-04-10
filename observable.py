@@ -46,11 +46,33 @@ class cached_property(object):
             obj.__dict__[self.__name__] = value
         return value
 
-#from functools import cached_property
+class ObservableProperty:
+    """In an subclass of Observable, this will add an 'update_***' topic for the property."""
+    def __set_name__(self, owner, name):
+        if issubclass(owner, Observable):
+            self.update_event = 'update_' + name
+            getattr(owner, 'subscribable_topics').add(self.update_event)
+            self.private_name = '_' + name
+            print(f"binding property {name}")
+        else:
+            raise TypeError('ObservableProperty can only be used in subclasses of Observable.')
+    def __get__(self, obj, objtype = None):
+        return getattr(obj, self.private_name)
+        
+    def __set__(self, obj, value):
+        setattr(obj, self.private_name, value)
+        # notify listeners
+        obj.notify(self.update_event, value)
+
+class UnsupportedTopicException(Exception):
+    pass
+
 class Observable:
     """
-    The Subject interface declares a set of methods for managing subscribers.
+    The interface declares a set of methods for managing subscribers.
     """
+    # cached_property decorator makes sure that these properties will be
+    # initialized to a new individual value for each instance.
     @cached_property
     def _observer_id(self):
         return 0
@@ -59,12 +81,15 @@ class Observable:
     def _observers(self):
         return {}
     
+    subscribable_topics = set()
+        
     def subscribe(self, topic, observer) -> None:
         """
         Attach an observer to the subject.
         """
-        self._observers.setdefault(topic, {})[self._observer_id] = observer
-        self._observer_id += 1
+        if self.check_topic(topic):
+            self._observers.setdefault(topic, {})[self._observer_id] = observer
+            self._observer_id += 1
 
     def unsubscribe(self, topic, *, oid=None, observer=None):
         """
@@ -85,5 +110,13 @@ class Observable:
         """
         Notify all observers about an event.
         """
-        for obsever in self._observers.get(topic, {}).values():
-            obsever(*args)
+        if self.check_topic(topic):
+            for obsever in self._observers.get(topic, {}).values():
+                obsever(*args)
+    
+    def check_topic(self, topic):
+        if topic not in self.subscribable_topics:
+            error_info = (f'Class {self.__class__.__name__} does not support the required topic "{topic}"\n'
+                f'Supported topics: {" ".join(self.subscribable_topics)}')
+            raise UnsupportedTopicException(error_info)
+        return True

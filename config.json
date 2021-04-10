@@ -8,15 +8,41 @@
       "short": {
         "work": 25,
         "rest": 5
+      },
+      "multiple": {
+        "minimum work time": 120,
+        "rest": 30
       }
     },
-    "super_rest": {
-      "work": 120,
-      "rest": 30
+    "appearance": {
+      "screen_size": "1920x1080",
+      "font": {
+        "size": 16
+      },
+      "progress_window_on_top": true,
+      "minimal_progress_window": false,
+      "main_window_on_top": true
     },
-    "screen_size": {
-      "width": 1920,
-      "height": 1080
+    "notification": {
+      "show_note_editor": true,
+      "use_audio": true,
+      "audio_file": "snd/egg_timer_short.mp3"
     }
+  },
+  "session": {
+    "long": {
+      "work": 2,
+      "rest": 1
+    },
+    "multiple": {
+      "minimum work time": 120,
+      "rest": 30
+    }
+  },
+  "appearance": {
+    "font": {
+      "size": 14
+    },
+    "minimal_progress_window": true
   }
 }

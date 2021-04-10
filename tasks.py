@@ -1,7 +1,9 @@
-from dataclasses import dataclass, field
-from typing import Callable, Dict
+from dataclasses import dataclass
+from typing import ClassVar, Set
+
 from observable import Observable
 import db
+
 
 @dataclass
 class Task(Observable):
@@ -12,6 +14,8 @@ class Task(Observable):
     progress: int = 0
     done: bool = False
     id: int = 0
+    global_can_start: ClassVar[bool] = True
+    subscribable_topics: ClassVar[Set[str]] = set(['change'])
     
     def remaining_pomodoro(self):
         return self.tomato - self.progress
@@ -22,7 +26,7 @@ class Task(Observable):
         self.notify('change', self)
         
     def can_start(self):
-        return self.remaining_pomodoro() > 0 and not self.done
+        return Task.global_can_start and self.remaining_pomodoro() > 0 and not self.done
         
     def set_done(self, flag):
         if self.done == flag: return
@@ -31,6 +35,8 @@ class Task(Observable):
         self.notify('change', self)
                     
 class TaskList(Observable):
+    subscribable_topics = ['change', 'add']
+    
     def __init__(self):
         self.tasks = []
         
@@ -43,9 +49,3 @@ class TaskList(Observable):
         self.tasks.append(task)
         task.id_ = db.insert_task(task)
         self.notify('add', task)
-        
-    
-        
-# def load_task_list():
-#     tasks = db.load_task_list()
-#     return TaskList([Task(**data) for data in tasks])

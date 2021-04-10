@@ -1,0 +1,1 @@
+clock2.png: modified from an image from https://pixy.org/3802194/

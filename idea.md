@@ -9,7 +9,8 @@ If a user want to interact with it, he can hover over the icon, then a full wind
 (the task name, progress bar, along with the title bar) will show, so that the user could
 move it, click it, etc.
 
-2. setting window:
+2. [ ] system tray
+2. [x]setting window:
 
   * session time pattern, 
   * long rest time, 
@@ -18,13 +19,13 @@ move it, click it, etc.
   * main window stay on top
   * font
   
-3. sound alert
+3. [x]sound alert
 
 4. make a package
 
 5. proper detection of screen size
 
-6. Observable property
+6. [x] Observable property
 
 7. A special "Misc" task, which captures the small, trivial things to do.
   - click on the task to pop an todo list editor 
@@ -38,7 +39,8 @@ move it, click it, etc.
 9. Anti procrastination by ugly!
   - show rotten tomato on the day of deadline
   
-   ___________________
- _/_|[ ][ ][ ][ ][ ] | - -
-( []    City Bus     | - -
-=--OO----------------OO--=dwb
+10. [] disable start button when a session is running
+
+11. sub task 
+  * use "a sub task @mai" to create a subtask who parent is the task in the list that starts with "mai".
+  * or the charactor "@" will pop a list 

@@ -1,3 +1,9 @@
+"""AssetPool is just a collection of images and fonts.
+
+Because the images and fonts can only be loaded after the root Tk object is created, we
+can not put them in the module level.
+"""
+
 from tkinter import PhotoImage, BitmapImage
 
 class AssetPool:
@@ -33,7 +39,11 @@ class AssetPool:
     
     def add_font(self, name, font):
         self.font_assets[name] = font
-
+    
+    def set_font_property(self, property, value):
+        for font in self.font_assets.values():
+            font[property] = value
+            
 def get_root(w):
     root = w.winfo_toplevel()
     if root.master:
