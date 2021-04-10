@@ -2,6 +2,7 @@ import tkinter
 from tkinter.messagebox import askyesno
 import time
 import json
+import datetime
 
 import gui
 import tasks
@@ -90,6 +91,7 @@ class App:
         #task_frame.attach_task_list(task_list, self.start_session, self.running_session)
        
         self.show_main_window()
+        self.start_cron()
         self.window.mainloop()
 
     def start_session(self, task):
@@ -151,7 +153,14 @@ class App:
                 self.window.quit()
         else:
             self.window.quit()
-
+    def start_cron(self):
+        def reload_task(last_reload_date):
+            today = datetime.datetime.today().day
+            if today != last_reload_date:
+                self.task_list.load_from_db()
+            self.window.after(36000, reload_task)
+        reload_task(datetime.datetime.today().day)
+            
 if __name__ == '__main__':
     import sys
     if len(sys.argv) == 2:
