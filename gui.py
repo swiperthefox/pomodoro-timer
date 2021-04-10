@@ -5,6 +5,7 @@ import tkinter.ttk as ttk
 from tkinter import font
 from tkinter import filedialog
 import time
+import datetime
 
 import tasks
 from asset import get_asset_pool, AssetPool, get_root
@@ -120,6 +121,7 @@ def render_app_window(app, title="", geom=""):
     asset_pool.add_img('new_icon', AssetPool.COLOR, 'image/plus.png')
     asset_pool.add_img('tomato_green', AssetPool.COLOR, 'image/tomato_green.png')
     asset_pool.add_img('clock', AssetPool.COLOR, 'image/clock.png')
+    asset_pool.add_img('setting', AssetPool.COLOR, 'image/setting.png')
     
     # attach asset_pool to root, so every widget can access it
     root.asset_pool = asset_pool
@@ -127,9 +129,18 @@ def render_app_window(app, title="", geom=""):
     root.iconphoto(True, asset_pool.get_image('tomato_red'))
     
     # create GUI components
-    ttk.Button(root, text="Setting", command=lambda: open_config_window(root, app_config)).grid(row=0, column=1)
+    today_var = tk.StringVar()
+    def set_date():
+        today = datetime.datetime.today()
+        today_var.set(today.strftime("%Y-%m-%d"))
+        root.after(3600000, set_date)
+    set_date()
+    titlebar = ttk.Label(root, textvariable=today_var, anchor=tk.CENTER,
+        font=('Monospace', 20), padding=(20, 0, 0, 0))
+    titlebar.grid(row=0, column=0, sticky='wes')
+    ttk.Button(titlebar, image=asset_pool.get_image('setting'), command=lambda: open_config_window(root, app_config)).pack(side=tk.RIGHT)
     task_frame = TaskListFrame(root, padx=7, pady=3)
-    task_frame.grid(row=0, column=0, sticky='snew', padx=15, pady=15)    
+    task_frame.grid(row=1, column=0, sticky='snew', padx=15, pady=15)    
     task_frame.attach_task_list(app.task_list, app.start_session, app.running_session)
 
 class TaskListFrame(tk.Frame):
@@ -451,7 +462,7 @@ class ConfigWindow(tk.Toplevel):
         
         frame = ttk.Frame(self)
         frame.grid(row=0, column=0)
-        self.body(frame, config)
+        self.body(frame, config, **self.grid_opt)
         self.create_buttons(frame)
     
     def make_callback_func(self, var, path):
