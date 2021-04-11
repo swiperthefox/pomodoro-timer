@@ -74,7 +74,6 @@ class App:
         self.config = PomodoroTimerConfig('config.json')
         db.open_database(db_name)        
         self.task_list = tasks.TaskList()
-        self.task_list.load_from_db()
         
         # gui
         self.window = tkinter.Tk()
@@ -87,8 +86,6 @@ class App:
             if path[-2] == 'font':
                 self.window.asset_pool.set_font_property(path[-1], value)
         self.config.subscribe('change', on_font_change)
-        
-        #task_frame.attach_task_list(task_list, self.start_session, self.running_session)
        
         self.show_main_window()
         self.start_cron()
@@ -104,7 +101,8 @@ class App:
         window = gui.ProgressWindow(self.window, task.description, work_time, geometry='+1640+3',
             keep_on_top=self.config.get_progress_on_top(),
             minimize=self.config.get_minimal_progress_window())
-        window.start(lambda: self.end_of_session(task, start_time = int(time.time())))
+        start_time = int(time.time())
+        window.start(lambda: self.end_of_session(task, start_time))
 
     def end_of_session(self, task, start_time):
         self.running_session.set(False)
@@ -158,8 +156,9 @@ class App:
             today = datetime.datetime.today().day
             if today != last_reload_date:
                 self.task_list.load_from_db()
-            self.window.after(36000, reload_task)
-        reload_task(datetime.datetime.today().day)
+                last_reload_date = today
+            self.window.after(3600000, reload_task, last_reload_date) # 3600000 = 1 hour
+        reload_task(-1)
             
 if __name__ == '__main__':
     import sys

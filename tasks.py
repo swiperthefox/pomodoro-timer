@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import ClassVar, Set
+from datetime import datetime
 
 from observable import Observable
 import db
@@ -50,3 +51,10 @@ class TaskList(Observable):
         self.tasks.append(task)
         task.id_ = db.insert_task(task)
         self.notify('add', task)
+
+def timestamp_to_string(timestamp):
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
+    
+def format_session(session):
+    start, end, note = session
+    return timestamp_to_string(start), timestamp_to_string(end), note

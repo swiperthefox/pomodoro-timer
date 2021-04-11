@@ -46,3 +46,11 @@ def insert_session(tid, start_time, end_time, note):
     cur.execute(insert_session_sql, (tid, start_time, end_time, note))
     db.commit()
     return cur.lastrowid
+
+load_session_for_task_sql = "SELECT start, end, note FROM session WHERE task = ?"
+def load_session_for_task(tid):
+    cur = db.cursor()
+    cur.execute(load_session_for_task_sql, (tid,))
+    result = cur.fetchall()
+    cur.close()
+    return result

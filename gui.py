@@ -8,7 +8,8 @@ import time
 import datetime
 
 import tasks
-from asset import get_asset_pool, AssetPool, get_root
+from asset import get_asset_pool, AssetPool
+import db
 
 ##
 #  General helper functions
@@ -101,7 +102,8 @@ def render_app_window(app, title="", geom=""):
     # set appearance
     style = ttk.Style()
     style.configure('TButton', relief=tk.FLAT)
-    
+    style.configure('Treeview', rowheight=30)
+
     # add assets
     asset_pool = AssetPool(root)
     
@@ -143,6 +145,10 @@ def render_app_window(app, title="", geom=""):
     task_frame.grid(row=1, column=0, sticky='snew', padx=15, pady=15)    
     task_frame.attach_task_list(app.task_list, app.start_session, app.running_session)
 
+def show_session_history_for_task(master, task):
+    sessions = db.load_session_for_task(task.id)
+    SessionHistoryDialog(master, sessions, task.description)
+    
 class TaskListFrame(tk.Frame):
     def __init__(self, master, **grid_opt):
         super().__init__(master)
@@ -157,25 +163,33 @@ class TaskListFrame(tk.Frame):
             child.destroy()
             
     def attach_task_list(self, task_list, start_pomodoro, running_session_flag):
-        # 
+        # observers to respond to changes of task_list
         if self.task_list:
             self.task_list.unsubscribe('change', observer=self.render_list)
             self.task_list.unsubscribe('add', observer=self.render_task)
             
         self.task_list = task_list
-        task_list.subscribe('change', self.render_task_list)
+        task_list.subscribe('change', self.render_list)
         task_list.subscribe('add', self.render_task)
+        
+        # these are needed to render new tasks in future
         self.start_pomodoro_command = start_pomodoro
         self.running_session_flag = running_session_flag
-        self.render_list(task_list)
+        
+        self.render_list(task_list.tasks)
 
-    def render_list(self, task_list):
+    def render_list(self, tasks):
         self.clear()
         self.render_header()
-        for task in task_list.tasks:
+        for task in tasks:
             self.render_task(task)
         
     def render_header(self):
+        
+        # Layout: 
+        # [+]  Done  Tasks          Pomodoro
+        # ---  ----- -------------  ---------
+        
         # newTaskBtn handler
         def add_task():
             new_task_dialog = NewTaskDialog(self.winfo_toplevel(), "Add Task")
@@ -196,16 +210,12 @@ class TaskListFrame(tk.Frame):
         
         grid_layout(self, rows, start_row=0, **self.grid_opt)
     
-    def render_task_list(self, tasks):
-        for task in tasks:
-            self.render_task(task)
-            
     def render_task(self, task):
         get_image = self.asset_pool.get_image
         
-        # the layout for a task is as follows
-        #     [start] [done] task title  RRGGG
-        # where  [button] is a button, R and G are red and green tomato images
+        # Layout:
+        #     [start] [done] task_title     RRGGG
+        # where  [xxx] are buttons, R and G are red and green tomato images
         start_btn = ttk.Button(self, image=get_image('clock'), 
             state = tk.NORMAL if task.can_start() else tk.DISABLED,
             command=lambda: self.start_pomodoro_command(task))
@@ -218,8 +228,12 @@ class TaskListFrame(tk.Frame):
         
         tomato_list = ([get_image('tomato_red')]*task.progress + 
             [get_image('tomato_green')]*task.remaining_pomodoro())
-        tomatoes = TomatoBox(self, tomato_list)
-        
+        def show_session_history(e):
+            show_session_history_for_task(self, task)
+        # tk does not propogate 
+        tomatoes = TomatoBox(self, tomato_list, show_session_history)
+        tomatoes.bind('<Button-1>', show_session_history)
+    
         row = [start_btn, done_btn, titleLabel, tomatoes]
         grid_layout(self, [row], start_row=tk.END, **self.grid_opt)
         
@@ -282,10 +296,9 @@ class TomatoBox(tk.Frame):
     config = configure
     
     def create_tomato(self, img, idx, handler):
-        if handler is None:
-            tomato = ttk.Label(self, image=img)
-        else:
-            tomato = ttk.Button(self, image=img, takefocus=0, command=lambda: handler(idx+1))
+        tomato = ttk.Label(self, image=img)
+        if handler is not None:
+            tomato.bind('<Button-1>', lambda e: handler(idx+1))
         self.tomatoes.append(tomato)
         tomato.pack(side=tk.LEFT)
         return tomato
@@ -368,13 +381,15 @@ class ProgressWindow(tk.Toplevel):
     """
     def __init__(self, master, info, duration, geometry=None, keep_on_top=False, minimize=False):
         self.duration = duration
-        self.tick_interval = min(60000, duration*60000//20) # 60000 = 1 minute
         tk.Toplevel.__init__(self, master)
         self.protocol('WM_DELETE_WINDOW', lambda: 1)
         self.progress = self.text = None
-        self.progress_text = tk.StringVar(value=f'00/{duration}')
+        self.progress_text = tk.StringVar(value=f'00/{duration:02d}')
         self.overrideredirect_flag = False
         self.geometry_value = geometry
+        
+        total_ticks = max(duration, 20)
+        self.tick_interval = duration*60000//total_ticks
         
         if geometry:
             self.geometry(geometry)
@@ -394,8 +409,8 @@ class ProgressWindow(tk.Toplevel):
             frame.config(padding=(10,10,10,10))
             self.text = tk.StringVar(value=info)
             text = ttk.Label(frame, textvariable=self.text, anchor=tk.W)
-            self.progress = tk.IntVar()
-            pbar = ttk.Progressbar(frame, mode='determinate', variable=self.progress, maximum=duration)
+            self.progress = tk.IntVar(value=0)
+            pbar = ttk.Progressbar(frame, mode='determinate', variable=self.progress, maximum=total_ticks)
             grid_layout(frame, [[text], [pbar_text, pbar]], start_row=0)
         else:
             # minimal layout, just
@@ -415,7 +430,7 @@ class ProgressWindow(tk.Toplevel):
         def tick():
             elapsed = int((time.time() - start_time)/60)
             if self.progress:
-                self.progress.set(elapsed)
+                self.progress.set(self.progress.get()+1)
             self.progress_text.set(f"{elapsed:02d}/{self.duration:02d}")
             if elapsed < self.duration:
                 self.after(self.tick_interval, tick)
@@ -622,4 +637,29 @@ class ConfigWindow(tk.Toplevel):
     def apply(self):
         for action in self.on_ok_actions:
             action()
+        
+class SessionHistoryDialog(tk.Toplevel):
+    def __init__(self, master, sessions, description):
+        super().__init__(master)
+        self.title(f'Session History: {description}')
+        self.render_sessions(sessions)
+        self.transient(master)
+        self.bind('<Escape>', lambda e: self.destroy())
+        
+    def render_sessions(self, sessions):
+        columns = ('start', 'end', 'note')
+        tree = ttk.Treeview(self, columns=columns)
+        tree.grid(row=0, column=0, sticky='news')
+        self.rowconfigure(0,weight=1)
+        self.columnconfigure(0,weight=1)
+        tree.column('start', width=200)
+        tree.column('end', width=200)
+        tree.column('note', stretch=1)
+        tree.heading('#0', text="ID")
+        tree.column('#0', width=40)
+        for col in columns:
+            tree.heading(col, text=col.capitalize())
+            
+        for i, session in enumerate(sessions):
+            tree.insert('', tk.END, text=str(i+1), values = tasks.format_session(session))
         
