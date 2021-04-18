@@ -17,6 +17,15 @@ CREATE TABLE IF NOT EXISTS "session" (
 	FOREIGN KEY("task") REFERENCES "task",
 	PRIMARY KEY("id" AUTOINCREMENT)
 );
+CREATE TABLE IF NOT EXISTS "todo" (
+	"id"	INTEGER NOT NULL UNIQUE,
+	"description"	TEXT NOT NULL,
+	"create_time"	INTEGER NOT NULL,
+	"deadline"	INTEGER DEFAULT 0,
+	"done"	INTEGER DEFAULT 0,
+	"complete_time"	INTEGER,
+	PRIMARY KEY("id" AUTOINCREMENT)
+);
 CREATE INDEX IF NOT EXISTS "task_status" ON "task" (
 	"done"
 );

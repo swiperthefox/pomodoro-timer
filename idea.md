@@ -1,15 +1,4 @@
-1. More detectable notification
-
-It's hard (need more dependency) to create a system tray. Here is a work around:
-
-create a window that only shows a small icon, indicating that a session is going on. We can make it
-stay on top all the time, and place it in a corner.
-
-If a user want to interact with it, he can hover over the icon, then a full window 
-(the task name, progress bar, along with the title bar) will show, so that the user could
-move it, click it, etc.
-
-2. [ ] system tray
+1. [ ] system tray
 2. [x]setting window:
 
   * session time pattern, 
@@ -39,8 +28,43 @@ move it, click it, etc.
 9. Anti procrastination by ugly!
   - show rotten tomato on the day of deadline
   
-10. [] disable start button when a session is running
+10. [x] disable start button when a session is running
 
 11. sub task 
   * use "a sub task @mai" to create a subtask who parent is the task in the list that starts with "mai".
   * or the charactor "@" will pop a list 
+  
+## MISC task
+
+1. a special kind of task
+2. can't mark as done
+3. todos are in a seperate table "todo"
+4. 
+
+## Text Entry Task Specification
+
+Use text string to specify properties of a task.
+
+- text: Pay the bill
+  This is the task description
+- Show (@): @04-15, @Mon (Tue, Wed, Thu, Fri, Sat, Sun), @+1, @+1w, @+1m
+  The day to start showing this task.
+- repeat (*): *w, *m, *y, *Mon, *m12, *y04-13
+  repeated task
+  * for *w, *m, *y, the date to repeat is the show date or today if there is no show date.
+  * for *Mon, *m12, *y04-13, the task will relisted on the next occurance of such date
+      if this date does not match the `show date`, then both of them will take effect.  
+- session type(==): == =
+  == for a long session, = for short session, =. for todo items
+- parent task (^): ^Other task^
+  the parent is the first task that is on current list, whose title matches the given text.
+  if repeat field exists, then this field is ignored. 
+
+## add commandline support:
+
+1. add "task description string"
+2. list
+3. start tid
+4. done tid
+5. history tid
+

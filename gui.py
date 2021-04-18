@@ -1,4 +1,5 @@
 from subprocess import run
+from tkinter.constants import E
 from tkinter.simpledialog import Dialog
 import tkinter as tk
 import tkinter.ttk as ttk
@@ -9,7 +10,7 @@ import datetime
 
 import tasks
 from asset import get_asset_pool, AssetPool
-import db
+from utils import format_date, parse_date
 
 ##
 #  General helper functions
@@ -83,15 +84,35 @@ def number_field(master, prompt, choices, initial):
     combbox = ttk.Combobox(master, values=choices, textvariable=var, width=4)
     return [label, combbox], {'value': var}
 
+def add_content_frame(toplevel: tk.Toplevel):
+    """Add a tkk.Frame instance to `toplevel` as its only child.
+    
+    Tk root window and Toplevels are not themed. This function will add a ttk.Frame
+    to the toplevel window, and config it to cover the whole area of the window. All 
+    children's should be added to this frame. In this way, we can themerize all windows
+    using ttk's style system.
+    """
+    frame = ttk.Frame(toplevel, padding=(20, 20, 20, 20))
+    toplevel['bg'] = 'black'
+    frame.grid(row=0, column=0, sticky='news')
+    toplevel.rowconfigure(0, weight=1)
+    toplevel.columnconfigure(0, weight=1)
+    return frame
+    
+def subscribe(observable, widget: tk.Widget, topic, callback):
+    """Register `callback` for the `observable`'s `topic` event. 
+    
+    Also arrange to remove the callback when the related widget is destroyed.
+    """
+    observable.subscribe(topic, callback)
+    widget.bind('<Destroy>', lambda e: observable.unsubscribe(topic, callback), add=True)
+    
 ##
 # GUI Components and Dialogs
 ##
-
-def render_app_window(app, title="", geom=""):
-    """Create the root window, configure some stylings and assets."""
-    # configuration of the appearance
-    app_config = app.config
     
+def render_app_window(app, title="", geom=""):
+    """Create the root window, configure some stylings and assets."""    
     root = app.window
     root.title(title)
     if geom:
@@ -99,11 +120,6 @@ def render_app_window(app, title="", geom=""):
     root.rowconfigure(0,weight=1)
     root.columnconfigure(0,weight=1)
     
-    # set appearance
-    style = ttk.Style()
-    style.configure('TButton', relief=tk.FLAT)
-    style.configure('Treeview', rowheight=30)
-
     # add assets
     asset_pool = AssetPool(root)
     
@@ -114,7 +130,7 @@ def render_app_window(app, title="", geom=""):
     asset_pool.add_font('normal', normal)
     asset_pool.add_font('strikeout', strikeout)
     asset_pool.add_font('text', font.nametofont('TkTextFont'))
-    asset_pool.set_font_property('size', app_config.get_font_size())
+    asset_pool.set_font_property('size', app.config.get_font_size())
     
     #    images
     asset_pool.add_img('tomato_red', AssetPool.COLOR, 'image/tomato_red.png')
@@ -125,34 +141,53 @@ def render_app_window(app, title="", geom=""):
     asset_pool.add_img('clock', AssetPool.COLOR, 'image/clock.png')
     asset_pool.add_img('setting', AssetPool.COLOR, 'image/setting.png')
     
-    # attach asset_pool to root, so every widget can access it
+    # attach asset_pool to root, so all other widgets can access it
     root.asset_pool = asset_pool
+    
+    # set appearance
+    style = ttk.Style()
+    style.configure('TButton', relief=tk.FLAT)
+    style.configure('Treeview', rowheight=30)
+    style.configure('TCheckbutton', relief=tk.FLAT)
 
     root.iconphoto(True, asset_pool.get_image('tomato_red'))
     
-    # create GUI components
+    # GUI components. Layout:
+    
+    #        2021-04-01        [#]
+    #  -----------------------------
+    #  |     task list ...         |
+    #  |                           |
+    
     today_var = tk.StringVar()
     def set_date():
+        """Update the date every 1 hour."""
         today = datetime.datetime.today()
         today_var.set(today.strftime("%Y-%m-%d"))
         root.after(3600000, set_date)
     set_date()
+    # title bar that show date
     titlebar = ttk.Label(root, textvariable=today_var, anchor=tk.CENTER,
-        font=('Monospace', 20), padding=(20, 0, 0, 0))
-    titlebar.grid(row=0, column=0, sticky='wes')
-    ttk.Button(titlebar, image=asset_pool.get_image('setting'), command=lambda: open_config_window(root, app_config)).pack(side=tk.RIGHT)
+        font=('Monospace', 20), padding=15)
+    
+    #     config button
+    ttk.Button(titlebar, image=asset_pool.get_image('setting'), 
+        command=lambda: open_config_window(root, app.config)).pack(side=tk.RIGHT)
+        
+    # task list
     task_frame = TaskListFrame(root, padx=7, pady=3)
-    task_frame.grid(row=1, column=0, sticky='snew', padx=15, pady=15)    
-    task_frame.attach_task_list(app.task_list, app.start_session, app.running_session)
+    grid_layout(root, [[titlebar], [task_frame]], start_row=0, padx=15)  
+    task_frame.attach_contents(app.task_list, app.todo_task, app.start_session, app.running_session)
 
 def show_session_history_for_task(master, task):
-    sessions = db.load_session_for_task(task.id)
-    SessionHistoryDialog(master, sessions, task.description)
+    sessions = tasks.Session.load_sessions_for_task(task.id)
+    SessionHistoryWindow(master, sessions, task.description)
     
 class TaskListFrame(tk.Frame):
     def __init__(self, master, **grid_opt):
         super().__init__(master)
         self.task_list = None
+        self.todo_task = None
         self.grid_opt = grid_opt
         self.asset_pool = get_asset_pool(self)
         self.columnconfigure(2, weight=4)
@@ -162,28 +197,61 @@ class TaskListFrame(tk.Frame):
         for child in self.winfo_children():
             child.destroy()
             
-    def attach_task_list(self, task_list, start_pomodoro, running_session_flag):
+    def attach_contents(self, task_list, todo_task, start_pomodoro, running_session_flag):
         # observers to respond to changes of task_list
         if self.task_list:
-            self.task_list.unsubscribe('change', observer=self.render_list)
+            self.task_list.unsubscribe('change', observer=self.render_task_list)
             self.task_list.unsubscribe('add', observer=self.render_task)
             
         self.task_list = task_list
-        task_list.subscribe('change', self.render_list)
+        task_list.subscribe('change', self.render_task_list)
         task_list.subscribe('add', self.render_task)
         
         # these are needed to render new tasks in future
         self.start_pomodoro_command = start_pomodoro
         self.running_session_flag = running_session_flag
         
-        self.render_list(task_list.tasks)
+        self.todo_task = todo_task
+        self.render_task_list(task_list)
 
-    def render_list(self, tasks):
+    def render_task_list(self, task_list):
         self.clear()
         self.render_header()
-        for task in tasks:
+        self.render_todo_task()
+        for task in task_list.entities:
             self.render_task(task)
+    
+    def render_todo_task(self):
+        """Render the special task "Misc. todos".
         
+        Differences between the gui of this task and others:
+        1. This task can't mark as `done`. Whether this task is `done` depends on how many unfinished
+        todos left. `Done` button is replaced with a label showing the number of unfinished todos.
+        2. Click on the task title will open a todo list.
+        """
+        widgets = self.render_task(self.todo_task)
+        
+        # replace the done check button with a label showing unfinished todos
+        self.todo_count_var = tk.StringVar(value=str(len(self.todo_task)))
+        label = ttk.Label(self, textvariable=self.todo_count_var, anchor=tk.CENTER)
+        check_btn = widgets[1]
+        grid_info = check_btn.grid_info()
+        check_btn.destroy()
+        label.grid(**grid_info)
+        
+        # handling click on title    
+        def show_todo_window(e):
+            todo_window = TodoListWindow(self, self.todo_task)
+            todo_window.transient(self.winfo_toplevel())
+        title = widgets[2]
+        title.bind('<1>', show_todo_window)
+        
+        ##
+        # update widget states
+        ##
+        def on_task_state_change(task):
+            self.todo_count_var.set(str(len(task)))
+        self.todo_task.subscribe('task-state-change', on_task_state_change)
     def render_header(self):
         
         # Layout: 
@@ -194,7 +262,7 @@ class TaskListFrame(tk.Frame):
         def add_task():
             new_task_dialog = NewTaskDialog(self.winfo_toplevel(), "Add Task")
             if new_task_dialog.result is not None:
-                self.task_list.add_task(new_task_dialog.result)
+                self.task_list.add(new_task_dialog.result)
         asset_pool = get_asset_pool(self)        
         
         rows = []
@@ -203,7 +271,7 @@ class TaskListFrame(tk.Frame):
             command=add_task)
         done_label = ttk.Label(self, text="Done")
         title = ttk.Label(self, text = "Task", anchor=tk.CENTER)
-        pomodoro_header = ttk.Label(self, text="Pomodoros")
+        pomodoro_header = ttk.Label(self, text="Sessions")
         
         rows.append([newTaskBtn, done_label, title, pomodoro_header])
         rows.append([ttk.Separator(self, orient=tk.HORIZONTAL) for i in range(4)])
@@ -213,14 +281,18 @@ class TaskListFrame(tk.Frame):
     def render_task(self, task):
         get_image = self.asset_pool.get_image
         
+        ## Create widgets 
         # Layout:
+        #
         #     [start] [done] task_title     RRGGG
-        # where  [xxx] are buttons, R and G are red and green tomato images
+        #
+        #  where  [xxx] are buttons, R and G are red and green tomato images
+        ##
         start_btn = ttk.Button(self, image=get_image('clock'), 
-            state = tk.NORMAL if task.can_start() else tk.DISABLED,
+            #state = tk.NORMAL if task.can_start() else tk.DISABLED,
             command=lambda: self.start_pomodoro_command(task))
             
-        state_var = tk.IntVar()
+        state_var = tk.BooleanVar()
         done_btn = tk.Checkbutton(self, variable=state_var, 
             command=lambda: task.set_done(state_var.get()))
         
@@ -230,16 +302,19 @@ class TaskListFrame(tk.Frame):
             [get_image('tomato_green')]*task.remaining_pomodoro())
         def show_session_history(e):
             show_session_history_for_task(self, task)
-        # tk does not propogate 
-        tomatoes = TomatoBox(self, tomato_list, show_session_history)
-        tomatoes.bind('<Button-1>', show_session_history)
+        # tk does not propagate events from child widget to its master, so we need to bind the action
+        # to both the tomato images and the container.
+        tomato_box = TomatoBox(self, tomato_list, show_session_history)
+        tomato_box.bind('<Button-1>', show_session_history)
     
-        row = [start_btn, done_btn, titleLabel, tomatoes]
+        row = [start_btn, done_btn, titleLabel, tomato_box]
         grid_layout(self, [row], start_row=tk.END, **self.grid_opt)
         
-        # register observers that will update the components on app state change
+        ##
+        # update widget states
+        ## 
         
-        # observer for changes of task
+        # observer for task's state changes
         def on_task_update(task=task):
             """update the presentation of the new task state"""
             font_type = 'strikeout' if task.done else 'normal'
@@ -247,18 +322,20 @@ class TaskListFrame(tk.Frame):
             update_start_button_state(self.running_session_flag.get())
             tomato_list = ([get_image('tomato_red')]*task.progress + 
                 [get_image('tomato_green')]*task.remaining_pomodoro())
-            tomatoes.config(tomatoes=tomato_list)
+            tomato_box.config(tomatoes=tomato_list)
+            
         # observer for change of `running_session_flag`
         def update_start_button_state(has_running_session):
             can_start = not has_running_session and task.can_start()
             start_btn.config(state = tk.NORMAL if can_start else tk.DISABLED)
             
-        task.subscribe('change', on_task_update)
+        task.subscribe('task-state-change', on_task_update)
         self.running_session_flag.trace_add(['write'], 
             lambda v,i, m: update_start_button_state(self.running_session_flag.get()))
-
-
-
+        
+        on_task_update(task)
+        return row
+        
 class TomatoBox(tk.Frame):
     """Render a list of images into a row of buttons.
     
@@ -278,6 +355,7 @@ class TomatoBox(tk.Frame):
             "KP_1": 1, "KP_2": 2, "KP_3": 3, "KP_4": 4, "KP_5": 5}
         if e.keysym in keysym_map:
             self.handler(keysym_map[e.keysym])
+
     def configure(self, cnf={}, **kw):
         kwargs = cnf.copy()
         kwargs.update(kw)
@@ -357,10 +435,11 @@ class NewTaskDialog(Dialog):
         return self.t_entry
         
     def apply(self):
-        self.result = tasks.Task(**{'description': self.t_entry.get().capitalize(),
-            'tomato': self.tomatoes,
-            'long_session': self.long_session_var.get()==1
-        })
+        self.result = tasks.Task.create(
+            description = self.t_entry.get().capitalize(),
+            tomato = self.tomatoes,
+            long_session = self.long_session_var.get()==1
+        )
     
     def validate(self):
         if len(self.t_entry.get().strip()) == 0:
@@ -396,16 +475,15 @@ class ProgressWindow(tk.Toplevel):
         if keep_on_top:
             self.attributes('-topmost', True)
         
-        frame = ttk.Frame(self)
-        frame.grid(row=0, column=0, sticky='news')
+        frame = add_content_frame(self)
         pbar_text = ttk.Label(frame, textvariable=self.progress_text) # for "15/45"
         
         if not minimize:
             # Layout:
-            # ----------------------------------
-            # | The task's description         |
-            # | 15/45 [----     ]              |
-            # ----------------------------------
+
+            #  The task's description           <---- task description
+            #  15/45 [=====    ]                <---- progress in text and graphic
+                       
             frame.config(padding=(10,10,10,10))
             self.text = tk.StringVar(value=info)
             text = ttk.Label(frame, textvariable=self.text, anchor=tk.W)
@@ -414,8 +492,8 @@ class ProgressWindow(tk.Toplevel):
             grid_layout(frame, [[text], [pbar_text, pbar]], start_row=0)
         else:
             # minimal layout, just
-            # 15/45
-            self.overrideredirect_flag = True
+            # 15/45             <---- only a text label
+            self.overrideredirect_flag = True # no title bar
             self.overrideredirect(self.overrideredirect_flag)
             pbar_text.grid(row=0, column=0)
             def toggle_minimal(e):
@@ -445,48 +523,35 @@ class ProgressWindow(tk.Toplevel):
     
     def update_title(self, new_title):
         self.title(new_title)
-        
-# def create_new_task(master):
-#     task_data = NewTaskDialog(master, "New Task").result
-#     if task_data:
-#         return tasks.Task(**task_data)
-#     else:
-#         return None
-        
 
 def open_config_window(master, config):
     config_win = ConfigWindow(master, "Settings", config, grid_opt={'padx': 7, 'pady': 3})
-    
-def get_screen_size(w):
-    w.attributes("-fullscreen", True)
-    w.update_idletasks()
-    geometry = w.geometry()
-    w.attributes("-fullscreen", False)
-    return geometry.split('+')[0]
     
 class ConfigWindow(tk.Toplevel):
     def __init__(self, master, title, config, grid_opt = {}, **kw):
         super().__init__(master, **kw)
         self.title(title)
-        self.config = config
+        self.app_config = config
         self.grid_opt = grid_opt
-        
-        # actions that collect values from fields and set it in config
-        # when ok or apply is clicked.
+        self.resizable(False, False)
+        # when ok or apply is clicked, the actions in `on_ok_actions`
+        # will collect values from the widgets and set it in config
         self.on_ok_actions = []
         
-        frame = ttk.Frame(self)
-        frame.grid(row=0, column=0)
-        self.body(frame, config, **self.grid_opt)
-        self.create_buttons(frame)
+        frame = add_content_frame(self)
+        notebook = self.body(frame, config, **self.grid_opt)
+        buttons = self.create_buttons(frame)
+        notebook.grid(row=0, column=0, **grid_opt)
+        buttons.grid(row=1, column=0, **grid_opt)
+
     
     def make_callback_func(self, var, path):
         """build a callback func, which will sync `var` and the configuration under `path`."""
         def callback():
-            current_config = self.config.get_config(path)
+            current_config = self.app_config.get_config(path)
             current_value = var.get()
             if current_config != current_value:
-                self.config.set_config(path, current_value)
+                self.app_config.set_config(path, current_value)
         return callback
         
     def body(self, master, config, **grid_option):
@@ -500,8 +565,7 @@ class ConfigWindow(tk.Toplevel):
         notification_frame, notification_focus = self.notification_frame(n, config)
         n.add(notification_frame, text='Notification')
         notification_focus.focus_set()
-        n.pack(side=tk.TOP)
-        n.grid(**grid_option)
+        return n
     
     def create_buttons(self, master, **grid_option):
         frame = ttk.Frame(master)
@@ -509,7 +573,8 @@ class ConfigWindow(tk.Toplevel):
         ok = ttk.Button(frame, text="OK", command=self.ok)
         apply = ttk.Button(frame, text="Apply", command=self.apply)
         grid_layout(frame, [[cancel, ok, apply]], **self.grid_opt)
-        frame.grid(grid_option)
+        return frame
+        
         
     def session_frame(self, master, config):
         nb_page = ttk.Frame(master)
@@ -538,7 +603,7 @@ class ConfigWindow(tk.Toplevel):
             for opt_name, minv, maxv in opt_paths[section]:
                 path = ['session', section, opt_name]
                 widget_row, vars = number_field(section_frame, opt_name.capitalize(), list(range(minv, maxv+1, 5)),
-                    self.config.get_config(path))
+                    self.app_config.get_config(path))
                 if first_input is None:
                     first_input = widget_row[1]
                 #var = vars['value']
@@ -638,7 +703,7 @@ class ConfigWindow(tk.Toplevel):
         for action in self.on_ok_actions:
             action()
         
-class SessionHistoryDialog(tk.Toplevel):
+class SessionHistoryWindow(tk.Toplevel):
     def __init__(self, master, sessions, description):
         super().__init__(master)
         self.title(f'Session History: {description}')
@@ -661,5 +726,93 @@ class SessionHistoryDialog(tk.Toplevel):
             tree.heading(col, text=col.capitalize())
             
         for i, session in enumerate(sessions):
-            tree.insert('', tk.END, text=str(i+1), values = tasks.format_session(session))
+            tree.insert('', tk.END, text=str(i+1), values = session)
         
+class TodoListWindow(tk.Toplevel):
+    def __init__(self, master, todo_task: tasks.TodoTask):
+        super().__init__(master)
+        self['bg'] = 'black'
+        self.minsize(width=500, height=400)
+        self.title('Misc Todo List')
+        self.todo_task = todo_task
+        self.frame = add_content_frame(self)
+        self.render_todos(todo_task)
+        subscribe(todo_task, self.frame, 'change', self.render_todos)
+        subscribe(todo_task, self.frame, 'add', self.render_todo)
+    
+        self.frame.columnconfigure(1, weight=1)
+        self.new_todo_widgets = None
+        self.bind('<Escape>', lambda e: self.destroy())
+    # Layout:
+    # 
+    # Todos              [+]
+    # ------------------------
+    # [ ]   Pay bill    04-15
+    # ...
+    #
+    
+    def render_todos(self, todo_task):
+        self.render_header(todo_task)
+        for todo in todo_task.todos.entities:
+            self.render_todo(todo)
+            
+    def render_header(self, todo_task):
+        ##
+        # Create widgets
+        ##
+        asset_pool = get_asset_pool(self)
+        new_todo_button = ttk.Button(self.frame, image=asset_pool.get_image('new_icon'), command=self.show_new_todo_widget)        
+        todo_label = ttk.Label(self.frame, text='Todos')
+        due_label = ttk.Label(self.frame, text="Due")
+        grid_layout(self.frame, [[new_todo_button, todo_label, due_label]], start_row=0, padx=7, pady=3)
+        
+        ##
+        # Update widget state
+        ##
+        
+    def render_todo(self, todo: tasks.Todo):
+        ##
+        # Create widgets
+        ##
+        done_state_var = tk.BooleanVar(value=todo.done)
+        def toggle_done():
+            self.todo_task.set_todo_state(todo.id, done_state_var.get())
+        done_button = ttk.Checkbutton(self.frame, command=toggle_done, variable=done_state_var)
+        title_label = ttk.Label(self.frame, text=todo.description)
+        deadline_label = ttk.Label(self.frame, text=format_date(todo.deadline))
+        grid_layout(self.frame, [[done_button, title_label, deadline_label]], start_row='end', padx=7, pady=3)
+        ##
+        #  Update widgets
+        ##
+        def on_todo_state_change(todo):
+            asset_pool = get_asset_pool(self.frame)
+            font_type = 'strikeout' if todo.done else 'normal'
+            title_label.config(font = asset_pool.get_font(font_type)) 
+        subscribe(todo, title_label, 'state-change', on_todo_state_change)
+        
+    def confirm_new_todo(self, e):
+        todo = tasks.Todo.create(self.new_todo_title.get(), parse_date(self.new_todo_deadline.get()))
+        self.clear_new_todo_widgets(e)
+        self.todo_task.add_todo(todo)
+        
+    def clear_new_todo_widgets(self, e):
+        self.new_todo_title.set('')
+        self.new_todo_deadline.set('')
+        for child in self.new_todo_widgets:
+            child.grid_forget()
+        
+    def show_new_todo_widget(self):
+        if not self.new_todo_widgets:
+            done_state_var = tk.BooleanVar(value=False)
+            done_button = ttk.Checkbutton(self.frame, variable=done_state_var, state=tk.DISABLED)
+            self.new_todo_title = tk.StringVar()
+            self.new_todo_deadline = tk.StringVar()
+            title_entry = ttk.Entry(self.frame, textvariable=self.new_todo_title)
+            deadline_entry = ttk.Entry(self.frame, textvariable=self.new_todo_deadline)
+            self.new_todo_widgets = [done_button, title_entry, deadline_entry]
+            for entry in [title_entry, deadline_entry]:
+                entry.bind('<Return>', self.confirm_new_todo)
+                entry.bind('<Escape>', self.clear_new_todo_widgets)
+        grid_layout(self.frame, [self.new_todo_widgets], start_row='end', padx=7, pady=3)
+        self.new_todo_widgets[1].focus_set()
+    

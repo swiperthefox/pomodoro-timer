@@ -1,5 +1,12 @@
-"""
-Observer pattern.
+"""Observable Class.
+
+A subclass of Observable should define `_topics`, which is a set of available topic to subscribe.
+
+Observers that is interested in a specific topic could register a callback using the `subscribe` method.
+
+By defining an attribute with ObservableProperty, the changes of this attribute can be observed through
+the topic 'update-xxx', where xxx is the name of the property. The callbacks will be called with two
+parameters: property-value and object-value.
 """
 # cached_property implementation from Werkzeug project (see https://stackoverflow.com/questions/12084445/python-change-a-property-getter-after-the-fact)
 # python 3.9 provide it in functools.
@@ -47,76 +54,102 @@ class cached_property(object):
         return value
 
 class ObservableProperty:
-    """In an subclass of Observable, this will add an 'update_***' topic for the property."""
+    """In a subclass of Observable, this will enable observing changes of this property.
+    
+    1. An `update-xxx` topic is added in available topics.
+    2. Whenever the value of this property is changed, the subscribers will be notified.
+    
+    Usage:
+        class A:
+            age = ObservableProperty()
+    
+    """
     def __set_name__(self, owner, name):
         if issubclass(owner, Observable):
             self.update_event = 'update_' + name
-            getattr(owner, 'subscribable_topics').add(self.update_event)
+            getattr(owner, '_topics').add(self.update_event)
             self.private_name = '_' + name
-            print(f"binding property {name}")
         else:
             raise TypeError('ObservableProperty can only be used in subclasses of Observable.')
     def __get__(self, obj, objtype = None):
         return getattr(obj, self.private_name)
         
     def __set__(self, obj, value):
+        old_value = getattr(obj, self.private_name)
+        if old_value == value:
+            return
         setattr(obj, self.private_name, value)
-        # notify listeners
-        obj.notify(self.update_event, value)
+        obj.notify(self.update_event, value, obj)
 
 class UnsupportedTopicException(Exception):
     pass
 
 class Observable:
-    """
-    The interface declares a set of methods for managing subscribers.
+    """This class provides basic support of observer pattern.
+    
+    Subclasses should define a class variable `_topic`, which is a list of subscribable topics.
+    
+    Three methods are defined to support the observer pattern:
+    
+    subscribe(topic, callback): register callback as a observer of 'topic' event.
+    subscribe(topic) will create a decorator, which will register the decorated function.
+    For example:
+        
+        @target.subscribe('change')
+        def on_target_change(value):
+            pass
+        
+    The decorator will return the original function, so it's possible to chain the decorators:
+        
+        @target1.subscribe('topic1')
+        @target2.subscribe('topic2')
+        def on_targets_change(value1=old_value1, value2=old_value2):
+            pass
+    
+    unsubscribe(topic, callback): remove callback from the observers list.
+    
+    notify('topic', *args): call the topic's observers, with `args` as parameters.
     """
     # cached_property decorator makes sure that these properties will be
     # initialized to a new individual value for each instance.
-    @cached_property
-    def _observer_id(self):
-        return 0
 
     @cached_property
     def _observers(self):
         return {}
     
-    subscribable_topics = set()
+    _topics = set()
         
-    def subscribe(self, topic, observer) -> None:
+    def subscribe(self, topic, observer=None):
         """
         Attach an observer to the subject.
         """
-        if self.check_topic(topic):
-            self._observers.setdefault(topic, {})[self._observer_id] = observer
-            self._observer_id += 1
+        if self.validate_topic(topic):
+            if observer is None:
+                return lambda callback: self.subscribe(topic, callback)
+            else:
+                self._observers.setdefault(topic, set()).add(observer)
+                return observer
 
-    def unsubscribe(self, topic, *, oid=None, observer=None):
+    def unsubscribe(self, topic, observer=None):
         """
         Detach an observer from the subject.
         """
         if topic not in self._observers:
             return
         observers = self._observers[topic]
-        if oid in observers:
-            observers.pop(oid)
-        elif observer is not None:
-            keys = list(observers.keys())
-            for k in keys:
-                if observers[k] == observer:
-                    observers.pop(k)
+        observers.discard(observer)
 
     def notify(self, topic, *args):
         """
         Notify all observers about an event.
         """
-        if self.check_topic(topic):
-            for obsever in self._observers.get(topic, {}).values():
+        if self.validate_topic(topic):
+            for obsever in self._observers.get(topic, {}):
                 obsever(*args)
     
-    def check_topic(self, topic):
-        if topic not in self.subscribable_topics:
+    def validate_topic(self, topic):
+        if topic not in self._topics:
             error_info = (f'Class {self.__class__.__name__} does not support the required topic "{topic}"\n'
-                f'Supported topics: {" ".join(self.subscribable_topics)}')
+                f'Supported topics: {" ".join(self._topics)}')
             raise UnsupportedTopicException(error_info)
         return True

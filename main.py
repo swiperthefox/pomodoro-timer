@@ -11,7 +11,7 @@ import observable
 import audio
 
 class JsonBasedConfig(observable.Observable):
-    subscribable_topics = ['change']
+    _topics = ['change']
     def __init__(self, config_file) -> None:
         with open(config_file) as f:
             self.config = json.load(f)
@@ -72,13 +72,18 @@ class App:
     def __init__(self, db_name, title):
         # data
         self.config = PomodoroTimerConfig('config.json')
-        db.open_database(db_name)        
-        self.task_list = tasks.TaskList()
+        db.open_database(db_name)
+        
+        self.task_list = tasks.EntityList(tasks.Task)
+        self.task_list.load_from_db(done=0)
+        todo_list = tasks.EntityList(tasks.Todo)
+        todo_list.load_from_db(done=0)
+        self.todo_task = tasks.TodoTask(todo_list)
         
         # gui
         self.window = tkinter.Tk()
         self.running_session = tkinter.BooleanVar(value=False)
-        gui.render_app_window(self, title, "+600+400")
+        gui.render_app_window(self, title, "+700+400")
         self.window.protocol('WM_DELETE_WINDOW', self.on_exit)
         
         def on_font_change(path, value):
@@ -86,7 +91,6 @@ class App:
             if path[-2] == 'font':
                 self.window.asset_pool.set_font_property(path[-1], value)
         self.config.subscribe('change', on_font_change)
-       
         self.show_main_window()
         self.start_cron()
         self.window.mainloop()
@@ -103,6 +107,8 @@ class App:
             minimize=self.config.get_minimal_progress_window())
         start_time = int(time.time())
         window.start(lambda: self.end_of_session(task, start_time))
+        if isinstance(task, tasks.TodoTask):
+            gui.TodoListWindow(self.window, task)
 
     def end_of_session(self, task, start_time):
         self.running_session.set(False)
@@ -124,7 +130,7 @@ class App:
             note = note_editor.result.strip() if note_editor.result else  ""
         else:
             note = ""
-        db.insert_session(task.id, start_time, end_time, note)
+        tasks.Session.insert_session(task.id, start_time, end_time, note)
     
     def start_rest(self, break_time):
         break_message_template = """\
@@ -151,14 +157,15 @@ class App:
                 self.window.quit()
         else:
             self.window.quit()
+            
     def start_cron(self):
         def reload_task(last_reload_date):
             today = datetime.datetime.today().day
             if today != last_reload_date:
-                self.task_list.load_from_db()
+                self.task_list.load_from_db(done=0)
                 last_reload_date = today
             self.window.after(3600000, reload_task, last_reload_date) # 3600000 = 1 hour
-        reload_task(-1)
+        reload_task(datetime.datetime.today().day)
             
 if __name__ == '__main__':
     import sys
