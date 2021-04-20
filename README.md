@@ -25,7 +25,7 @@ The rest of interactions with the application are self explaining.
 
 ## Some Notes:
 
-1. A task is not "a task for today", it will stay in the list until it's marked as done. 
+1. A task is not "a task for today", it will stay in the list on every day until it's marked as done. 
 
 2. A task is assigned a certain number of sessions for each day. After all the assigned sessions are used, one can not start the session. The sessions will be restored when the task list is reloaded (see below).
 
