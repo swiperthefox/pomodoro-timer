@@ -2,11 +2,11 @@
 
 ## Fetures:
 
-* Manager tasks.
-* Start a sesion timer for a given task.
+* Manage tasks.
+* Start a session timer for a given task.
 * (Optionally) Add a short note after a session.
-* Show session history for a task.
-* A "Todo task" that captures trivial things which does worth a whole session.
+* Show sessions history for a task.
+* A "Todo task" that captures trivial things which does not worth a whole session.
 
 ## Quick Start
 
@@ -25,12 +25,12 @@ The rest of interactions with the application are self explaining.
 
 ## Some Notes:
 
-1. A task is not "a task for today", it will stay in the list on every day until it's marked as done. 
+1. A task is not "a task for today", it will stay in the list day to day until it's marked as done. 
 
-2. A task is assigned a certain number of sessions for each day. After all the assigned sessions are used, one can not start the session. The sessions will be restored when the task list is reloaded (see below).
+2. A task is assigned a certain number of sessions for each day. After all the assigned sessions are used, one can not start the task.
 
 3. Tasks marked as done will stay in the list for the rest of day, to show some progress of the day.
 
-4. The task list will be reloaded when the app is restarted or when the date  changed.
+4. The task list will be reloaded when the app is restarted or the date changed. The finished tasks will be removed from the list.
 
 5. There are two type of sessions for different kind of tasks: long (50 minutes of work plus 10 minutes of rest) and short (25m plus 5m). The time lengths can be changed in settings.
