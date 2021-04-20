@@ -140,6 +140,7 @@ def render_app_window(app, title="", geom=""):
     asset_pool.add_img('tomato_green', AssetPool.COLOR, 'image/tomato_green.png')
     asset_pool.add_img('clock', AssetPool.COLOR, 'image/clock.png')
     asset_pool.add_img('setting', AssetPool.COLOR, 'image/setting.png')
+    asset_pool.add_img('doc', AssetPool.COLOR, 'image/doc.png')
     
     # attach asset_pool to root, so all other widgets can access it
     root.asset_pool = asset_pool
@@ -177,7 +178,7 @@ def render_app_window(app, title="", geom=""):
     # task list
     task_frame = TaskListFrame(root, padx=7, pady=3)
     grid_layout(root, [[titlebar], [task_frame]], start_row=0, padx=15)  
-    task_frame.attach_contents(app.task_list, app.todo_task, app.start_session, app.running_session)
+    task_frame.attach_contents(app.task_list, app.todo_task, app.start_session, app.session_running)
 
 def show_session_history_for_task(master, task):
     sessions = tasks.Session.load_sessions_for_task(task.id)
@@ -861,3 +862,13 @@ class TodoListWindow(tk.Toplevel):
         if cls.todo_window is None or not tk.Toplevel.winfo_exists(cls.todo_window):
             cls.todo_window = cls(master, todo_task)
         cls.todo_window.transient(master.winfo_toplevel())
+
+
+class HelpWindow(Dialog):
+    def body(self, master):
+        asset_pool = get_asset_pool(master)
+        content = ttk.Label(master, image=asset_pool.get_image('doc'))
+        content.pack()
+        self.transient(self.master.winfo_toplevel())
+        
+    

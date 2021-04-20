@@ -8,7 +8,8 @@ a = Analysis(['main.py'],
              binaries=[],
              datas=[
                ('image/*png', 'image'),
-               ('pomodoro.sqlite3.sql', '.')
+               ('pomodoro.sqlite3.sql', '.'),
+               ('config.json', '.')
              ],
              hiddenimports=[],
              hookspath=[],

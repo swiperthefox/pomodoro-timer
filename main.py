@@ -1,18 +1,20 @@
 import tkinter
 from tkinter.messagebox import askyesno
 import time
-import json
 import datetime
+import os
 
 import gui
 from model import appconfig, tasks
 import db
 import audio
-        
+
+APP_DB = 'app.sqlite3'
 class App:
     def __init__(self, db_name, title):
         # data
         self.config = appconfig.PomodoroTimerConfig('config.json')
+        first_run = not os.path.exists(db_name)
         db.open_database(db_name)
         
         self.task_list = tasks.EntityList(tasks.Task)
@@ -34,6 +36,8 @@ class App:
         self.config.subscribe('change', on_font_change)
         self.show_main_window()
         self.start_cron()
+        if first_run:
+            help = gui.HelpWindow(self.window, "Quick Start")
         self.window.mainloop()
 
     def start_session(self, task):
@@ -108,10 +112,10 @@ class App:
             
 if __name__ == '__main__':
     import sys
-    if len(sys.argv) == 2:
-        db_name = sys.argv[1]
-        title = "Pomodoro Timer"
-    else:
+    if sys.flags.dev_mode:
         db_name = 'test.sqlite3'
         title = "Pomodoro Timer (dev)"
+    else:
+        db_name = "app.sqlite3"
+        title = "Pomodoro Timer"
     App(db_name, title)

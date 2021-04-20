@@ -31,12 +31,16 @@
   },
   "session": {
     "long": {
-      "work": 2,
-      "rest": 1
+      "work": 50,
+      "rest": 10
     },
     "multiple": {
       "minimum work time": 120,
       "rest": 30
+    },
+    "short": {
+      "work": 25,
+      "rest": 5
     }
   },
   "appearance": {
