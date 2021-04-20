@@ -60,7 +60,7 @@ Use text string to specify properties of a task.
   the parent is the first task that is on current list, whose title matches the given text.
   if repeat field exists, then this field is ignored. 
 
-## add commandline support:
+## add command line interface:
 
 1. add "task description string"
 2. list

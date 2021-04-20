@@ -1,4 +1,4 @@
-from noorm import Model, WrongFieldNameError
+from .noorm import Model, WrongFieldNameError
 import unittest
 from unittest.mock import Mock
 
@@ -17,13 +17,6 @@ class NoOrmClassDefinitionTest(unittest.TestCase):
             }
         self.assertEqual(A.nonexist_int, 0)
         self.assertEqual(A.nonexist_str, '')
-        
-    def test_field_name_check_normal(self):
-        class A(Model):
-            _fields = {'exist': int, 'more': str}
-            exist = 10
-            more = 'a string'
-        self.assertTrue(True)
 
 class NoORMTest(unittest.TestCase):
     """Tests that based on one texture class."""

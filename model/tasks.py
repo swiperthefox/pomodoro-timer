@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Set
 from datetime import datetime
 import time
 
-from observable import Observable
-from noorm import Model
+from .observable import Observable
+from .noorm import Model
 
 @dataclass
 class Task(Observable, Model):
@@ -17,11 +17,11 @@ class Task(Observable, Model):
         'done': bool,
         'id': int
     }
-
+    
     _topics: ClassVar[Set[str]] = set(['task-state-change'])
     
     def remaining_pomodoro(self):
-        return self.tomato - self.progress
+        return self.tomato - self.progress # type: ignore
         
     def incr_progress(self):
         self.progress += 1
@@ -60,20 +60,28 @@ class EntityList(Observable):
 
 class TodoTask(Task):
     _topics: ClassVar[Set[str]] = set(['change', 'add', 'task-state-change'])
-    def __init__(self, todo_list: EntityList):
-        super().__init__("Misc. todos", 5)
-        self.todos = todo_list
     
+    def __init__(self, todo_list: EntityList):
+        super().__init__(description="Misc. todos", tomato=5) # type: ignore
+        self.todos = todo_list
+        self.id = 0 # an id that not possible for other auto generated ones, sqlite3 specific.
+        
     @property
     def done(self):
-        return len(self) == 0
+        "TodoTask's is done if there is no todos unfinished."
+        return self.unfinished == 0
     
     @done.setter
     def done(self, v):
         pass
+        
+    def set_done(self, flag): # type: ignore
+        "Can't change todo task's state to done."
+        pass
     
-    def __len__(self):
-        return sum((1 for todo in self.todos.entities if not todo.done), 0)
+    @property
+    def unfinished(self):
+        return sum((not todo.done for todo in self.todos.entities), 0)
         
     def add_todo(self, todo):
         self.todos.add(todo)
@@ -147,10 +155,10 @@ class Session(Model):
     def load_sessions_for_task(cls, task_id):
         rows = cls.query_db_fields(['start', 'end', 'note'], task=task_id)
         return [cls.format_session(row) for row in rows]
-        
+    
     @classmethod
-    def insert_session(cls, *args):
-        cls(*args).save_to_db()
-        
+    def insert_session(cls, *args, **kw):
+        cls.create(*args, **kw)
+                
 def timestamp_to_string(timestamp):
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")

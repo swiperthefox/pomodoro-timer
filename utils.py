@@ -1,4 +1,5 @@
-from datetime import datetime
+import re
+from datetime import datetime, date, timedelta
 
 def format_date(d):
     if d == 0:
@@ -7,7 +8,7 @@ def format_date(d):
     today = datetime.today().toordinal()
     diff = date.toordinal() - today
     if diff < 0:
-        return "dued"
+        return "past"
     elif diff == 0:
         return "today"
     elif diff < 7:

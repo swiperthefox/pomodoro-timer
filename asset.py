@@ -15,7 +15,7 @@ class AssetPool:
         self.font_assets = {}
         self.__img_cache = {}
         
-    def get_image(self, name) -> PhotoImage:
+    def get_image(self, name):
         if name in self.__img_cache:
             return self.__img_cache[name]
         elif name in self.img_assets:

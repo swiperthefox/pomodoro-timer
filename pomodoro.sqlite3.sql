@@ -1,16 +1,15 @@
 BEGIN TRANSACTION;
 CREATE TABLE IF NOT EXISTS "task" (
-	"id"	INTEGER UNIQUE,
+	"id"	INTEGER PRIMARY KEY,
 	"description"	TEXT NOT NULL,
 	"long_session"	INTEGER NOT NULL DEFAULT 0,
 	"tomato"	INTEGER NOT NULL DEFAULT 1,
 	"done"	INTEGER NOT NULL DEFAULT 0,
-	"progress"	INTEGER NOT NULL DEFAULT 0,
-	PRIMARY KEY("id" AUTOINCREMENT)
+	"progress"	INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS "session" (
 	"id"	INTEGER NOT NULL UNIQUE,
-	"task"	INTEGER NOT NULL,
+	"task"	INTEGER,
 	"start"	INTEGER NOT NULL,
 	"end"	INTEGER NOT NULL,
 	"note"	TEXT,
@@ -31,5 +30,8 @@ CREATE INDEX IF NOT EXISTS "task_status" ON "task" (
 );
 CREATE INDEX IF NOT EXISTS "session_task" ON "session" (
 	"task"
+);
+CREATE INDEX IF NOT EXISTS "todo_done" ON "todo" (
+	"done"
 );
 COMMIT;
