@@ -5,6 +5,7 @@ import time
 
 from .observable import Observable
 from .noorm import Model
+import db
 
 @dataclass
 class Task(Observable, Model):
@@ -38,8 +39,9 @@ class Task(Observable, Model):
     @classmethod
     def load_list(cls, **kw):
         tasks = cls.query_db(**kw)
+        sessions = Session.load_sessions_of_today()
         for task in tasks:
-            task.progress = 0
+            task.progress = sessions.get(task.id, 0)
         return tasks
 
 class EntityList(Observable):
@@ -159,6 +161,14 @@ class Session(Model):
     @classmethod
     def insert_session(cls, *args, **kw):
         cls.create(*args, **kw)
-                
+    
+    @classmethod
+    def load_sessions_of_today(cls):
+        today = datetime.today()
+        start_of_today = datetime(today.year, today.month, today.day, 0, 0, 0).timestamp()
+        sql = 'SELECT task, count(*) FROM session WHERE start > ? GROUP BY task'
+        session_count = db.execute_query(sql, (int(start_of_today),))
+        return {task: c for task, c in session_count}
+        
 def timestamp_to_string(timestamp):
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
