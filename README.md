@@ -29,10 +29,10 @@ The rest of the user interfaces are self-explaining.
 
 2. A task is assigned a certain number of sessions for each day. The start button will be disabled after all the assigned sessions had been used.
 
-3. Tasks marked as done will stay in the task list for the rest of day, to show some progress of the day.
+3. Tasks marked as done will stay in the task list until the task list is reloaded, to show the progress of the day.
 
 4. The task list will be reloaded when the app is restarted or when the date change.
 
-5. There are two types of sessions for different tasks: long (50 minutes of work plus 10 minutes of rest) and short (25m plus 5m). The lengths of the sessions can be changed in settings.
+5. There are two types of sessions for different tasks: long (50 minutes of work time plus 10 minutes of rest time) and short (25m plus 5m) ones. These times can be customized in settings.
 
 ## Feedbacks, issue reports, and suggestions are welcome.
