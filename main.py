@@ -4,7 +4,7 @@ import time
 import datetime
 import os
 
-import gui
+from gui import gui
 from model import appconfig, tasks
 import db
 import audio

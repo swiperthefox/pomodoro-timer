@@ -1,6 +1,6 @@
 from subprocess import run
 from tkinter.constants import E
-from tkinter.simpledialog import Dialog
+from .simpledialog import Dialog
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import font
@@ -11,101 +11,7 @@ import datetime
 from model import tasks
 from asset import get_asset_pool, AssetPool
 from utils import format_date, parse_date
-
-##
-#  General helper functions
-##
-def grid_layout(parent, children_grid, start_row = tk.END, **opt):
-    """Put a set of children in a grid layout.
-    
-    Repeated elements implies span, None for empty cell. For example:
-    
-    [[a, a, b, c],
-     [a, a, d, e],
-     [None, None, f, g]]
-     
-    means a.grid(row=0, col=0, rowspan=2, columnspan=2), b.grid(row=0,col=2), ....
-    
-    if the rows have different length, the last elments of shorter row will span over
-    the rest of columns.
-    """
-    if start_row == tk.END:
-        start_row = parent.grid_size()[1]
-
-    seen = set()
-    max_row_length = max(len(row) for row in children_grid)
-    for row in children_grid:
-        row.extend([row[-1]]*(max_row_length - len(row)))
-        
-    for r, row in enumerate(children_grid):
-        for c, w in enumerate(row):
-            if w is None or w in seen:
-                continue
-            row_span = 0
-            while r + row_span < len(children_grid) and w == children_grid[r+row_span][c]:
-                row_span += 1
-            col_span = 0
-            while c + col_span < len(row) and w == row[c+col_span]:
-                col_span += 1
-            
-            w.grid(row=r+start_row, column = c, rowspan=row_span, columnspan=col_span, sticky='news', **opt)
-            seen.add(w)
-def text_field(master, prompt, initial):
-    label = ttk.Label(master, text=prompt)
-    var = tk.StringVar()
-    var.set(initial)
-    entry = ttk.Entry(master, textvariable=var)
-    return [label, entry], {'value': var}
-    
-def boolean_field(master, prompt, info, initial):
-    label = ttk.Label(master, text=prompt)
-    var = tk.BooleanVar()
-    var.set(initial)
-    button = ttk.Checkbutton(master, variable=var, text=info)
-    return [label if prompt else button, button], {'value': var}
-    
-def radio_field(master, prompt, options, initial):
-    widgets = []
-    label = ttk.Label(master, text=prompt)
-    widgets.append(label)
-    var = tk.StringVar()
-    var.set(initial)
-    if len(options[0]) == 1:
-        options = [(opt, opt) for opt in options]
-    for text, value in options:
-        button = ttk.Radiobutton(master, text=text, value=value, variable=var)
-        widgets.append(button)
-    return widgets, {'value': var}
-    
-def number_field(master, prompt, choices, initial):
-    label = ttk.Label(master, text=prompt)
-    var = tk.IntVar()
-    var.set(initial)
-    combbox = ttk.Combobox(master, values=choices, textvariable=var, width=4)
-    return [label, combbox], {'value': var}
-
-def add_content_frame(toplevel: tk.Toplevel, **kw):
-    """Add a tkk.Frame instance to `toplevel` as its only child.
-    
-    Tk root window and Toplevels are not themed. This function will add a ttk.Frame
-    to the toplevel window, and config it to cover the whole area of the window. All 
-    children's should be added to this frame. In this way, we can themerize all windows
-    using ttk's style system.
-    """
-    frame = ttk.Frame(toplevel, **kw)
-    toplevel['bg'] = 'black'
-    frame.grid(row=0, column=0, sticky='news')
-    toplevel.rowconfigure(0, weight=1)
-    toplevel.columnconfigure(0, weight=1)
-    return frame
-    
-def subscribe(observable, widget: tk.Widget, topic, callback):
-    """Register `callback` for the `observable`'s `topic` event. 
-    
-    Also arrange to remove the callback when the related widget is destroyed.
-    """
-    observable.subscribe(topic, callback)
-    widget.bind('<Destroy>', lambda e: observable.unsubscribe(topic, callback), add=True)
+from gui.utils import *
     
 ##
 # GUI Components and Dialogs
@@ -119,7 +25,7 @@ def render_app_window(app, title="", geom=""):
         root.geometry(geom)
     root.rowconfigure(0,weight=1)
     root.columnconfigure(0,weight=1)
-    
+    content = add_content_frame(root)
     # add assets
     asset_pool = AssetPool(root)
     
@@ -147,10 +53,17 @@ def render_app_window(app, title="", geom=""):
     
     # set appearance
     style = ttk.Style()
-    style.configure('TButton', relief=tk.FLAT)
+    bgcolor = "#ddddddddd"
+    style.configure('TButton', relief=tk.FLAT, background=bgcolor)
     style.configure('Treeview', rowheight=30)
     style.configure('TCheckbutton', relief=tk.FLAT)
-
+    style.configure('TFrame', background=bgcolor)
+    style.configure('TLabel', background=bgcolor)
+    style.configure('TCheckbutton', background=bgcolor)
+    style.configure('TLabelframe', background=bgcolor)
+    style.map('TLabelframe.Label', background=bgcolor)
+    style.configure('TNotebook', background=bgcolor)
+    style.configure('Treeview', background=bgcolor)
     root.iconphoto(True, asset_pool.get_image('tomato_red'))
     
     # GUI components. Layout:
@@ -168,7 +81,7 @@ def render_app_window(app, title="", geom=""):
         root.after(3600000, set_date)
     set_date()
     # title bar that show date
-    titlebar = ttk.Label(root, textvariable=today_var, anchor=tk.CENTER,
+    titlebar = ttk.Label(content, textvariable=today_var, anchor=tk.CENTER,
         font=('Monospace', 20), padding=15)
     
     #     config button
@@ -176,15 +89,17 @@ def render_app_window(app, title="", geom=""):
         command=lambda: open_config_window(root, app.config)).pack(side=tk.RIGHT)
         
     # task list
-    task_frame = TaskListFrame(root, padx=7, pady=3)
-    grid_layout(root, [[titlebar], [task_frame]], start_row=0, padx=15)  
+    task_frame = TaskListFrame(content, padx=7, pady=3)
+    grid_layout(content, [[titlebar], [task_frame]], start_row=0, padx=15)  
     task_frame.attach_contents(app.task_list, app.todo_task, app.start_session, app.session_running)
 
-def show_session_history_for_task(master, task):
-    sessions = tasks.Session.load_sessions_for_task(task.id)
-    SessionHistoryWindow(master, sessions, task.description)
+def show_session_history_for_task(master, task: tasks.Task):
+    if not task._showing_sessions:
+        task._showing_sessions = True
+        sessions = tasks.Session.load_sessions_for_task(task.id)
+        SessionHistoryWindow(master, sessions, task)
     
-class TaskListFrame(tk.Frame):
+class TaskListFrame(ttk.Frame):
     def __init__(self, master, **grid_opt):
         super().__init__(master)
         self.task_list = None
@@ -217,10 +132,11 @@ class TaskListFrame(tk.Frame):
 
     def render_task_list(self, task_list):
         self.clear()
-        self.render_header()
-        self.render_todo_task()
+        rows = self.render_header()
+        rows.append(self.render_todo_task())
         for task in task_list.entities:
-            self.render_task(task)
+            rows.append(self.render_task(task))
+        grid_layout(self, rows, **self.grid_opt)
     
     def render_todo_task(self):
         """Render the special task "Misc. todos".
@@ -261,10 +177,9 @@ class TaskListFrame(tk.Frame):
         # to both the tomato images and the container.
         tomato_box = TomatoBox(self, tomato_list, show_session_history)
         tomato_box.bind('<Button-1>', show_session_history)
-        
+        tomato_box.config(relief="raise")
         row = [start_btn, todo_count_label, title_label, tomato_box]
-        grid_layout(self, [row], start_row=tk.END, **self.grid_opt)
-        
+
         ##
         # update widget states
         ##
@@ -290,6 +205,7 @@ class TaskListFrame(tk.Frame):
             lambda v,i, m: update_start_button_state(self.running_session_flag.get()))
         
         on_task_update(task)
+        return row
         
     def render_header(self):
         
@@ -315,8 +231,8 @@ class TaskListFrame(tk.Frame):
         rows.append([newTaskBtn, done_label, title, pomodoro_header])
         rows.append([ttk.Separator(self, orient=tk.HORIZONTAL) for i in range(4)])
         
-        grid_layout(self, rows, start_row=0, **self.grid_opt)
-    
+        return rows
+        
     def render_task(self, task):
         get_image = self.asset_pool.get_image
         
@@ -332,7 +248,7 @@ class TaskListFrame(tk.Frame):
             command=lambda: self.start_pomodoro_command(task))
             
         state_var = tk.BooleanVar()
-        done_btn = tk.Checkbutton(self, variable=state_var, 
+        done_btn = ttk.Checkbutton(self, variable=state_var, 
             command=lambda: task.set_done(state_var.get()))
         
         title_label = ttk.Label(self, text=task.description, anchor=tk.W)
@@ -347,8 +263,7 @@ class TaskListFrame(tk.Frame):
         tomato_box.bind('<Button-1>', show_session_history)
     
         row = [start_btn, done_btn, title_label, tomato_box]
-        grid_layout(self, [row], start_row=tk.END, **self.grid_opt)
-        
+
         ##
         # update widget states
         ## 
@@ -375,14 +290,14 @@ class TaskListFrame(tk.Frame):
         on_task_update(task)
         return row
         
-class TomatoBox(tk.Frame):
+class TomatoBox(ttk.Frame):
     """Render a list of images into a row of buttons.
     
     When one button is clicked, the `click_handler` will be called with its index
     as parameter.
     """
     def __init__(self, parent, tomato_config, click_handler=None, **keywords):
-        tk.Frame.__init__(self, parent, takefocus=1, highlightthickness=1, **keywords)
+        ttk.Frame.__init__(self, parent, takefocus=1, **keywords)
         self.tomatoes = []
         self.handler = click_handler
         for i, tomato in enumerate(tomato_config):
@@ -743,19 +658,22 @@ class ConfigWindow(tk.Toplevel):
             action()
         
 class SessionHistoryWindow(tk.Toplevel):
-    def __init__(self, master, sessions, description):
+    def __init__(self, master, sessions, task: tasks.Task):
         super().__init__(master)
-        self.title(f'Session History: {description}')
+        self.frame = add_content_frame(self)
+        self.title(f'Session History: {task.description}')
         self.render_sessions(sessions)
         self.transient(master)
         self.bind('<Escape>', lambda e: self.destroy())
-        
+        def on_close(e):
+            task._showing_sessions = False
+        self.frame.bind('<Destroy>', on_close)
     def render_sessions(self, sessions):
         columns = ('start', 'end', 'note')
-        tree = ttk.Treeview(self, columns=columns)
-        tree.grid(row=0, column=0, sticky='news')
-        self.rowconfigure(0,weight=1)
-        self.columnconfigure(0,weight=1)
+        tree = ttk.Treeview(self.frame, columns=columns)
+        tree.grid(row=0, column=0, sticky='wens')
+        self.frame.rowconfigure(0,weight=1)
+        self.frame.columnconfigure(0,weight=1)
         tree.column('start', width=200)
         tree.column('end', width=200)
         tree.column('note', stretch=1)

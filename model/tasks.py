@@ -19,6 +19,7 @@ class Task(Observable, Model):
         'id': int
     }
     
+    _showing_sessions = False 
     _topics: ClassVar[Set[str]] = set(['task-state-change'])
     
     def remaining_pomodoro(self):
