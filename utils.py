@@ -11,10 +11,15 @@ def format_date(d):
         return "past"
     elif diff == 0:
         return "today"
+    elif diff == 1:
+        return "tomorrow"
     elif diff < 7:
-        return "in a week"
+        return f"in {diff} days"
     else:
         return date.strftime("%m-%d")
 
 def parse_date(s):
     return 0
+    
+def parse_date_complex(s, base=date.today()):
+    return 15

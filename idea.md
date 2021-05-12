@@ -16,31 +16,24 @@
 
 6. [x] Observable property
 
-7. A special "Misc" task, which captures the small, trivial things to do.
-  - click on the task to pop an todo list editor 
+7. [x] A special "Misc" task, which captures the small, trivial things to do.
+  - Click on the task to pop a todo list editor 
   - repeated events
   - also can be created in the normal task editor dialog
   
 8. repeated events: tasks are set to repeat every week, month or year.
   - no "repeat every day", since such tasks can stay on the task list, as long as it is not done.
-  - if we want an event to repeat every week, the we don't want it to stay there for the whole week.
+  - if we want an event to repeat every week, then we don't want it to stay there for the whole week.
 
 9. Anti procrastination by ugly!
-  - show rotten tomato on the day of deadline
+  - show rotten tomato on the day of the deadline
   
 10. [x] disable start button when a session is running
 
-11. sub task 
-  * use "a sub task @mai" to create a subtask who parent is the task in the list that starts with "mai".
-  * or the charactor "@" will pop a list 
+11. subtask 
+  * use "a subtask ~mai" to create a subtask who's parent is the task in the list that starts with "mai".
+  * or the character "~" will pop a list 
   
-## MISC task
-
-1. a special kind of task
-2. can't mark as done
-3. todos are in a seperate table "todo"
-4. 
-
 ## Text Entry Task Specification
 
 Use text string to specify properties of a task.

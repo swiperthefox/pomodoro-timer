@@ -53,17 +53,11 @@ def render_app_window(app, title="", geom=""):
     
     # set appearance
     style = ttk.Style()
-    bgcolor = "#ddddddddd"
-    style.configure('TButton', relief=tk.FLAT, background=bgcolor)
     style.configure('Treeview', rowheight=30)
-    style.configure('TCheckbutton', relief=tk.FLAT)
-    style.configure('TFrame', background=bgcolor)
-    style.configure('TLabel', background=bgcolor)
-    style.configure('TCheckbutton', background=bgcolor)
-    style.configure('TLabelframe', background=bgcolor)
-    style.map('TLabelframe.Label', background=bgcolor)
-    style.configure('TNotebook', background=bgcolor)
-    style.configure('Treeview', background=bgcolor)
+    style.configure('TCheckbutton', relief=tk.FLAT, indicatormargin=20)
+    style.configure('TButton', relief=tk.FLAT)
+    style.configure('Normal.TButton', relief=tk.RAISED)
+    style.configure('.', background="#eeeeeeeee")
     root.iconphoto(True, asset_pool.get_image('tomato_red'))
     
     # GUI components. Layout:
@@ -374,17 +368,19 @@ class NewTaskDialog(Dialog):
         tomatobox = TomatoBox(master, [get_image('tomato_dim')]*5, on_choose_tomato)
         
         self.long_session_var = tk.IntVar()
-        session_type_label = ttk.Label(master, text="Type:", anchor=tk.W)
-        long_session_btn = ttk.Checkbutton(master, text="Long session",
-            variable=self.long_session_var)
+        session_type_label = ttk.Label(master, text="Duration", anchor=tk.W)
+        long_session_btn = ttk.Radiobutton(master, text="Long",
+            variable=self.long_session_var, value=1)
+        short_session_btn = ttk.Radiobutton(master, text="Short", 
+            variable=self.long_session_var, value=0)
         
         self.error_var = tk.StringVar()
         error_label = ttk.Label(master, textvariable=self.error_var, foreground='red', anchor=tk.W)
         
-        rows = [[t_label,              self.t_entry],
-                [c_label,              tomatobox],
-                [session_type_label,   long_session_btn],
-                [error_label,          error_label]]
+        rows = [[t_label,              self.t_entry,    self.t_entry],
+                [c_label,              tomatobox,          tomatobox],
+                [session_type_label,   long_session_btn, short_session_btn],
+                [error_label,          error_label,         error_label]]
         grid_layout(master, rows, 0, padx=3, pady=5)
         return self.t_entry
         
@@ -637,7 +633,8 @@ class ConfigWindow(tk.Toplevel):
             selected = filedialog.askopenfilename(title="Select an audio file", parent=nb_page, filetypes=[("MP3 file", "*.mp3")])
             if selected:
                 audio_file_var.set(selected)
-        file_chooser_btn = ttk.Button(nb_page, text="File...", command=choose_file)
+        file_chooser_btn = ttk.Button(nb_page, text="File...", command=choose_file
+            , style='Normal.TButton')
         widget_rows.append([audio_file_label, audio_file_entry, file_chooser_btn])
         self.on_ok_actions.append(
             self.make_callback_func(audio_file_var, audio_path)
