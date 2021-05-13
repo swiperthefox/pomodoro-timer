@@ -79,13 +79,14 @@ def render_app_window(app, title="", geom=""):
         font=('Monospace', 20), padding=15)
     
     #     config button
-    ttk.Button(titlebar, image=asset_pool.get_image('setting'),  # type: ignore
+    ttk.Button(titlebar, image=asset_pool.get_image('setting'),  # type: ignore (it's OK for image to be None)
         command=lambda: open_config_window(root, app.config)).pack(side=tk.RIGHT)
         
     # task list
-    task_frame = TaskListFrame(content, padx=7, pady=3)
+    task_frame = TaskListFrame(content,
+        app.task_list, app.todo_task, app.start_session, app.session_running,
+        padx=7, pady=3)
     grid_layout(content, [[titlebar], [task_frame]], start_row=0, padx=15)  
-    task_frame.attach_contents(app.task_list, app.todo_task, app.start_session, app.session_running)
 
 def show_session_history_for_task(master, task: tasks.Task):
     if not task._showing_sessions:
@@ -94,37 +95,24 @@ def show_session_history_for_task(master, task: tasks.Task):
         SessionHistoryWindow(master, sessions, task)
     
 class TaskListFrame(ttk.Frame):
-    def __init__(self, master, **grid_opt):
+    def __init__(self, master, task_list, todo_list, start_pomodoro, running_session_flag, **grid_opt):
         super().__init__(master)
-        self.task_list = None
-        self.todo_task = None
         self.grid_opt = grid_opt
         self.asset_pool = get_asset_pool(self)
         self.columnconfigure(2, weight=4)
         self.columnconfigure(3, weight=1)
-    
-    def clear(self):
-        for child in self.winfo_children():
-            child.destroy()
-            
-    def attach_contents(self, task_list, todo_task: tasks.TodoTask, start_pomodoro, running_session_flag):
-        # observers to respond to changes of task_list
-        if self.task_list:
-            self.task_list.unsubscribe('change', observer=self.render_task_list)
-            self.task_list.unsubscribe('add', observer=self.render_task)
-            
-        self.task_list = task_list
-        task_list.subscribe('change', self.render_task_list)
-        task_list.subscribe('add', self.render_task)
         
-        # these are needed to render new tasks in future
+        # bookkeeping setup
+        self.task_list = task_list
+        self.todo_task = todo_list
         self.start_pomodoro_command = start_pomodoro
         self.running_session_flag = running_session_flag
-        
-        self.todo_task = todo_task
-        self.render_task_list(task_list)
-
-    def render_task_list(self, task_list):
+        task_list.subscribe('change', self.display_task_list)
+        task_list.subscribe('add', self.display_new_task)
+    
+        self.display_task_list(task_list)
+                    
+    def display_task_list(self, task_list):
         self.clear()
         rows = self.render_header()
         rows.append(self.render_todo_task())
@@ -132,75 +120,14 @@ class TaskListFrame(ttk.Frame):
             rows.append(self.render_task(task))
         grid_layout(self, rows, **self.grid_opt)
     
-    def render_todo_task(self):
-        """Render the special task "Misc. todos".
-        
-        Differences between the gui of this task and others:
-        1. This task can't mark as `done`. Whether this task is `done` depends on how many unfinished
-        todos left. `Done` button is replaced with a label showing the number of unfinished todos.
-        2. Click on the task title will open a todo list.
-        """
-        ##
-        # Create Widget
-        # 
-        # [start]  5  Misc. todos  RRGGG
-        ##
-        task: tasks.TodoTask = self.todo_task # type: ignore
-        get_image = get_asset_pool(self).get_image
-        
-        def show_todo_window(e):
-            todo_window = TodoListWindow.show_todo_window(self, self.todo_task)
-        def start_todo_task():
-            show_todo_window(None)
-            self.start_pomodoro_command(task)
-            
-        start_btn = ttk.Button(self, image=get_image('clock'), command=start_todo_task)
-        
-        self.todo_count_var = tk.IntVar(value=task.unfinished) # must keep a reference of the var
-        todo_count_label = ttk.Label(self, textvariable=self.todo_count_var, anchor=tk.CENTER)
-        todo_count_label.bind('<1>', show_todo_window)
-        
-        title_label = ttk.Label(self, text=task.description)
-        title_label.bind('<1>', show_todo_window)
-        
-        tomato_list = ([get_image('tomato_red')]*task.progress + 
-            [get_image('tomato_green')]*task.remaining_pomodoro())
-        def show_session_history(e):
-            show_session_history_for_task(self, task)
-        # tk does not propagate events from child widget to its master, so we need to bind the action
-        # to both the tomato images and the container.
-        tomato_box = TomatoBox(self, tomato_list, show_session_history)
-        tomato_box.bind('<Button-1>', show_session_history)
-        tomato_box.config(relief="raise")
-        row = [start_btn, todo_count_label, title_label, tomato_box]
+    def display_new_task(self, task):
+        row = self.render_task(task)
+        grid_layout(self, [row], **self.grid_opt)
+    
+    def clear(self):
+        for child in self.winfo_children():
+            child.destroy()
 
-        ##
-        # update widget states
-        ##
-        # observer for task's state changes
-        def on_task_update(task=task):
-            """update the presentation of the new task state
-            
-            start_btn, todo_count and tomato_box need to be updated.
-            """
-            update_start_button_state(self.running_session_flag.get())
-            self.todo_count_var.set(task.unfinished)
-            tomato_list = ([get_image('tomato_red')]*task.progress + 
-                [get_image('tomato_green')]*task.remaining_pomodoro())
-            tomato_box.config(tomatoes=tomato_list)
-            
-        # observer for change of `running_session_flag`
-        def update_start_button_state(has_running_session):
-            can_start = not has_running_session and task.can_start()
-            start_btn.config(state = tk.NORMAL if can_start else tk.DISABLED)
-            
-        task.subscribe('task-state-change', on_task_update)
-        self.running_session_flag.trace_add(['write'], 
-            lambda v,i, m: update_start_button_state(self.running_session_flag.get()))
-        
-        on_task_update(task)
-        return row
-        
     def render_header(self):
         
         # Layout: 
@@ -268,6 +195,75 @@ class TaskListFrame(ttk.Frame):
             font_type = 'strikeout' if task.done else 'normal'
             title_label.config(font = self.asset_pool.get_font(font_type))
             update_start_button_state(self.running_session_flag.get())
+            tomato_list = ([get_image('tomato_red')]*task.progress + 
+                [get_image('tomato_green')]*task.remaining_pomodoro())
+            tomato_box.config(tomatoes=tomato_list)
+            
+        # observer for change of `running_session_flag`
+        def update_start_button_state(has_running_session):
+            can_start = not has_running_session and task.can_start()
+            start_btn.config(state = tk.NORMAL if can_start else tk.DISABLED)
+            
+        task.subscribe('task-state-change', on_task_update)
+        self.running_session_flag.trace_add(['write'], 
+            lambda v,i, m: update_start_button_state(self.running_session_flag.get()))
+        
+        on_task_update(task)
+        return row
+        
+    def render_todo_task(self):
+        """Render the special task "Misc. todos".
+        
+        Differences between the gui of this task and others:
+        1. This task can't mark as `done`. Whether this task is `done` depends on how many unfinished
+        todos left. `Done` button is replaced with a label showing the number of unfinished todos.
+        2. Click on the task title will open a todo list.
+        """
+        ##
+        # Create Widget
+        # 
+        # [start]  5  Misc. todos  RRGGG
+        ##
+        task: tasks.TodoTask = self.todo_task 
+        get_image = get_asset_pool(self).get_image
+        
+        def show_todo_window(e):
+            todo_window = TodoListWindow.show_todo_window(self, self.todo_task)
+        def start_todo_task():
+            show_todo_window(None)
+            self.start_pomodoro_command(task)
+            
+        start_btn = ttk.Button(self, image=get_image('clock'), command=start_todo_task)
+        
+        self.todo_count_var = tk.IntVar(value=task.unfinished) # must keep a reference of the var
+        todo_count_label = ttk.Label(self, textvariable=self.todo_count_var, anchor=tk.CENTER)
+        todo_count_label.bind('<1>', show_todo_window)
+        
+        title_label = ttk.Label(self, text=task.description)
+        title_label.bind('<1>', show_todo_window)
+        
+        tomato_list = ([get_image('tomato_red')]*task.progress + 
+            [get_image('tomato_green')]*task.remaining_pomodoro())
+        def show_session_history(e):
+            show_session_history_for_task(self, task)
+        # tk does not propagate events from child widget to its master, so we need to bind the action
+        # to both the tomato images and the container.
+        tomato_box = TomatoBox(self, tomato_list, show_session_history)
+        tomato_box.bind('<Button-1>', show_session_history)
+        tomato_box.config(relief="raise")
+        row = [start_btn, todo_count_label, title_label, tomato_box]
+
+        ##
+        # update widget states
+        ##
+        # observer for task's state changes
+        def on_task_update(task=task):
+            """update the presentation of the new task state
+            
+            start_btn, todo_count and tomato_box need to be updated.
+            """
+            update_start_button_state(self.running_session_flag.get())
+            self.todo_count_var.set(task.unfinished)
             tomato_list = ([get_image('tomato_red')]*task.progress + 
                 [get_image('tomato_green')]*task.remaining_pomodoro())
             tomato_box.config(tomatoes=tomato_list)
@@ -658,13 +654,14 @@ class SessionHistoryWindow(tk.Toplevel):
     def __init__(self, master, sessions, task: tasks.Task):
         super().__init__(master)
         self.frame = add_content_frame(self)
-        self.title(f'Session History: {task.description}')
+        self.title(f'Session History: {task.description}') # type: ignore
         self.render_sessions(sessions)
         self.transient(master)
         self.bind('<Escape>', lambda e: self.destroy())
         def on_close(e):
             task._showing_sessions = False
         self.frame.bind('<Destroy>', on_close)
+        
     def render_sessions(self, sessions):
         columns = ('start', 'end', 'note')
         tree = ttk.Treeview(self.frame, columns=columns)
@@ -699,7 +696,8 @@ class TodoListWindow(tk.Toplevel):
         self.frame.columnconfigure(1, weight=1)
         self.new_todo_widgets = None
         self.bind('<Escape>', lambda e: self.destroy())
-    # Layout:
+        
+    # Todo List Layout:
     # 
     # Todos              [+]
     # ------------------------
