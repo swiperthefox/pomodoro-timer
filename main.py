@@ -17,11 +17,11 @@ class App:
         first_run = not os.path.exists(db_name)
         db.open_database(db_name)
         
-        self.task_list = tasks.EntityList(tasks.Task)
+        self.task_list = tasks.TaskList()
         self.task_list.load_from_db(done=0)
         todo_list = tasks.EntityList(tasks.Todo)
         todo_list.load_from_db(done=0)
-        self.todo_task = tasks.TodoTask(todo_list)
+        self.todo_task = tasks.TodoTask(self.task_list.todo_task_id, todo_list)
         
         # gui
         self.window = tkinter.Tk()
@@ -45,6 +45,7 @@ class App:
         
         #self.window.withdraw()
         self.window.attributes('-topmost', False)
+        self.window.lower()
         self.session_running.set(True)
         
         window = gui.ProgressWindow(self.window, task.description, work_time, geometry='+1640+3',
@@ -110,6 +111,8 @@ class App:
             self.window.after(3600000, reload_task, last_reload_date) # 3600000 = 1 hour
         reload_task(datetime.datetime.today().day)
             
+
+        
 if __name__ == '__main__':
     import sys
     if sys.flags.dev_mode:

@@ -62,13 +62,39 @@ class EntityList(Observable):
         self.entities.append(entity)
         self.notify('add', entity)
 
+class TaskList(EntityList):
+    def __init__(self):
+        super().__init__(Task)
+        self.todo_task_id = None
+        
+    def load_from_db(self, **where):
+        super().load_from_db(**where)
+        self.todo_task_id = self.find_or_create_todo_task()
+    
+    def find_or_create_todo_task(self):
+        """Find the special todo task from task_list, remove it from the list and return the task's id.
+        If the task doesn't exist, create a new special task and return it's id.
+        """
+        idx = 0
+        tasks = self.entities
+        # The special todo task has an empty description. It's not possible for users to create such 
+        # kind of task (see NewTaskDialog), so this is a reliable way to identify the task.
+        while idx < len(tasks) and tasks[idx].description != "":
+            idx += 1
+        if idx == len(tasks):
+            todo_task = Task.create(description="", tomato=5, long_session=False)
+        else:
+            todo_task = tasks[idx]
+            tasks.pop(idx)
+        return todo_task.id
+
 class TodoTask(Task):
     _topics: ClassVar[Set[str]] = set(['change', 'add', 'task-state-change'])
     
-    def __init__(self, todo_list: EntityList):
+    def __init__(self, task_id, todo_list: EntityList):
         super().__init__(description="Misc. todos", tomato=5) # type: ignore
         self.todos = todo_list
-        self.id = 0 # an id that not possible for other auto generated ones, sqlite3 specific.
+        self.id = task_id
         
     @property
     def done(self):
@@ -104,6 +130,7 @@ class TodoTask(Task):
     def set_done(self):
         raise NotImplemented
         
+
 class Todo(Model, Observable):
     _fields = {
         'description': str,
@@ -173,6 +200,7 @@ class Session(Model):
         return {task: c for task, c in session_count}
 
 class ScheduledTask(Model):
+    _table_name = "repeated_task"
     _fields = {
         'title': str,
         'tomato': int,

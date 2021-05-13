@@ -97,7 +97,6 @@ class Model:
         fields = [name for name in fields if name != 'id']
         
         sql = self._update_to_db_sql(fields) if self.id is not None else self._insert_to_db_sql(fields)
-        print(self.id, sql)
         parameters = tuple(maybe_apply(self._fields[k], getattr(self, k)) for k in fields)
         
         lastrowid = db.execute_commit(sql, parameters)

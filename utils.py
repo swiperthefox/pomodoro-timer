@@ -58,7 +58,9 @@ class PeriodicScheduler:
         """
         year, month, day, weekday = start.year, start.month, start.day, start.weekday()
         cycle_type = self.get_type()
-        if cycle_type == 'o':
+        if cycle_type is None:
+            return None
+        elif cycle_type == 'o':
             the_day = lastest_valid_date_before(self.year, self.month, self.day)
             print('the day is', the_day, start)
             if the_day.date() >= start:
@@ -98,12 +100,17 @@ class PeriodicScheduler:
             return 'o'
         elif self.month != -1:
             return 'y'
-        else:
+        elif self.day != -1:
             return 'm'
+        else:
+            return None
             
     def __str__(self):
         return f'{self.year} {self.month} {self.day} {self.weekday}'
     
     @classmethod
     def from_string(cls, s):
-        return cls(*[int(v) for v in s.split()])
+        pattern = [int(v) for v in s.split()]
+        if len(pattern) != 4:
+            pattern = [-1]*4
+        return cls(*pattern)
