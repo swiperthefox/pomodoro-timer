@@ -36,7 +36,6 @@ def maybe_apply(f, v):
 class Model:
     _fields = {}
     _table_name = ""
-    _saved_to_db = False
     
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
@@ -78,8 +77,6 @@ class Model:
         sql, params = cls._build_query_sql(cls._fields, **where)   
         data_list =  db.execute_query(sql, params)
         entities = [cls(**data) for data in data_list]
-        for e in entities:
-            e._saved_to_db = True
         return entities
     
     @classmethod
@@ -96,18 +93,21 @@ class Model:
                 if k not in self._fields:
                     raise WrongFieldNameError(k, self._table_name)
         
-        
         # should not change the 'id' field
         fields = [name for name in fields if name != 'id']
         
-        sql = self._update_to_db_sql(fields) if self._saved_to_db else self._insert_to_db_sql(fields) 
+        sql = self._update_to_db_sql(fields) if self.id is not None else self._insert_to_db_sql(fields)
+        print(self.id, sql)
         parameters = tuple(maybe_apply(self._fields[k], getattr(self, k)) for k in fields)
         
         lastrowid = db.execute_commit(sql, parameters)
-        if not self._saved_to_db:
+        if self.id is None:
             self.id = lastrowid
-            self._saved_to_db = True
     
+    def delete_from_db(self):
+        sql = self._delete_from_db_sql()
+        db.execute_commit(sql, (self.id,))
+        
     def _update_to_db_sql(self, fields):
         set_clause = ', '.join(field + " = ?" for field in fields) # "name=?, age=?"
         sql = f'''UPDATE {self._table_name}
@@ -122,6 +122,10 @@ class Model:
             VALUES ({','.join("?"*len(fields))})
         '''
         return sql
+    
+    def _delete_from_db_sql(self):
+        sql = f'DELETE FROM {self._table_name} WHERE id = ?'
+        return sql
         
     @classmethod
     def _build_query_sql(cls, fields=['*'], **where):
@@ -135,7 +139,7 @@ class Model:
                 criterial.append(f'{k} = ?')
                 parameters.append(maybe_apply(cls._fields[k], v))
         if criterial:
-            where_clause = " WHERE " + " and ".join(criterial)
+            where_clause = " WHERE " + " AND ".join(criterial)
         else:
             where_clause = ""
             

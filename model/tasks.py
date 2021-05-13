@@ -6,6 +6,7 @@ import time
 from .observable import Observable
 from .noorm import Model
 import db
+from utils import PeriodicScheduler
 
 @dataclass
 class Task(Observable, Model):
@@ -166,10 +167,85 @@ class Session(Model):
     @classmethod
     def load_sessions_of_today(cls):
         today = datetime.today()
-        start_of_today = datetime(today.year, today.month, today.day, 0, 0, 0).timestamp()
+        start_of_today = datetime(today.year, today.month, today.day, 1, 0, 0).timestamp()
         sql = 'SELECT task, count(*) FROM session WHERE start > ? GROUP BY task'
         session_count = db.execute_query(sql, (int(start_of_today),))
         return {task: c for task, c in session_count}
+
+class ScheduledTask(Model):
+    _fields = {
+        'title': str,
+        'tomato': int,
+        'schedule': str,
+        'last_scheduled': int,
+        'type': int
+    }
+    LONG = 3
+    SHORT = 2
+    TODO = 1
+    def __init__(self, title, tomato, schedule, last_scheduled, type, id):
+        self.title = title
+        self.tomato = tomato
+        self.schedule = schedule,
+        self.last_scheduled = last_scheduled
+        self.type = type
+        self.id = id
+        
+    def get_new_task(self, today: datetime):
+        "Get the (possibly) new task for `today`."
+        scheduler = PeriodicScheduler(self.schedule)
+        today = datetime.today()
+        last_schedule_date = datetime.fromtimestamp(self.last_scheduled)
+        if today.date() == last_schedule_date.date(): # just scheduled for today
+            return None
+            
+        if scheduler.should_schedule(today):
+            return dict(description=self.title, tomato = self.tomato, type=self.type) 
+        else:
+            return None
+        
+    def update_last_schedule_date(self):
+        today = datetime.today()
+        self.last_scheduled = int(today.timestamp())
+        self.save_to_db(['last_scheduled'])
         
 def timestamp_to_string(timestamp):
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
+
+def parse_task(task_description):
+    """Parse the extended task description, return a Task.
+    
+    A task can be specified in an "extended task description" format. The format is as follows:
+    
+    task_title #n [optional fields]
+    
+    where `task_title` is the description of the task and `n` is the number of session assigned.
+    
+    The optional fields are some fields that starts with some special characters. The fields could
+    appear in any order.
+    
+    - @show_time: When to list the task in the task list. Multiple show times will be combined.
+    
+    Possible format: 
+    1. @04-15: show at the given date. If the date is not valid, use the latest day that is prior
+    to the given date (for example: @4-32 will be transferred to the last day of April.)
+    2. @Mon (Tue, Wed, Thu, Fri, Sat, Sun): show at the upcoming given day of week.
+    3. @+10, @+2w, @+1m: a day relative to today.
+    
+    - *repeat_pattern: Repeatedly show the task in the given pattern.
+    
+    Possible format:
+    1. *w, *m, *y: repeat every week, month or year.
+    2. *Mon, *m12, *y04-13: these formats combine the show time with repeat time (Monday on every week,
+    on 12th every month, or April 13 every year.). If there are also @fields, all the show times will be
+    combined.
+    
+    - =duration: The duration type of session. Default is short session.
+    
+    Possible format:
+    "==" for long session, "=-" for short session and "=." for todos.
+    
+    - ^parent_title^: specifies the parent task. The first task in current list that matches the given
+    `parent_title` will be the parent of this task. Repeated tasks can't have parent task, if `*` field
+    is given, this field will be ignored.
+    """
