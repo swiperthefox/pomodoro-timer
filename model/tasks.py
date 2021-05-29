@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import ClassVar, Set
+from typing import ClassVar, List, Set
 from datetime import datetime
 import time
 
@@ -17,11 +17,13 @@ class Task(Observable, Model):
         'long_session': bool,
         'progress': int,
         'done': bool,
-        'id': int
+        'id': int,
+        'parent': int
     }
     
     _showing_sessions = False 
     _topics: ClassVar[Set[str]] = set(['task-state-change'])
+    subtasks: List = field(default_factory=list, init=False, hash=False)
     
     def remaining_pomodoro(self):
         return self.tomato - self.progress # type: ignore
@@ -36,6 +38,9 @@ class Task(Observable, Model):
     def set_done(self, flag):
         self.done = flag
         self.save_to_db()
+        if flag:
+            for task in self.subtasks:
+                task.set_done(flag)
         self.notify('task-state-change', self)
         
     @classmethod
@@ -61,7 +66,13 @@ class EntityList(Observable):
     def add(self, entity):
         self.entities.append(entity)
         self.notify('add', entity)
-
+    
+    def __iter__(self):
+        return iter(self.entities)
+    
+    def __getitem__(self, index):
+        return self.entities[index]
+            
 class TaskList(EntityList):
     def __init__(self):
         super().__init__(Task)
@@ -70,24 +81,33 @@ class TaskList(EntityList):
     def load_from_db(self, **where):
         super().load_from_db(**where)
         self.todo_task_id = self.find_or_create_todo_task()
-    
+        self.tasks = {}
+        for task in self.entities:
+            self.add(task)
+        
     def find_or_create_todo_task(self):
         """Find the special todo task from task_list, remove it from the list and return the task's id.
         If the task doesn't exist, create a new special task and return it's id.
         """
-        idx = 0
-        tasks = self.entities
-        # The special todo task has an empty description. It's not possible for users to create such 
-        # kind of task (see NewTaskDialog), so this is a reliable way to identify the task.
-        while idx < len(tasks) and tasks[idx].description != "":
-            idx += 1
-        if idx == len(tasks):
-            todo_task = Task.create(description="", tomato=5, long_session=False)
-        else:
-            todo_task = tasks[idx]
-            tasks.pop(idx)
-        return todo_task.id
+        for i, task in enumerate(self.entities):
+            # The special todo task has an empty description. It's not possible for users to create such 
+            # kind of task (see NewTaskDialog), so this is a reliable way to identify the task.
+            if task.description == "":
+                return self.entities.pop(i).id
 
+        todo_task = Task.create(description="", tomato=5, long_session=False)
+        return todo_task.id
+        
+    def __iter__(self):
+        return iter(self.tasks.values())
+        
+    def add(self, task):
+        if task.parent is None:
+            self.tasks[task.id] = task
+        else:
+            self.tasks[task.parent].subtasks.append(task)
+        self.notify('change', self)
+        
 class TodoTask(Task):
     _topics: ClassVar[Set[str]] = set(['change', 'add', 'task-state-change'])
     
@@ -140,7 +160,7 @@ class Todo(Model, Observable):
         'complete_time': int
     }
     _topics = set(['state-change'])
-    def __init__(self, description, deadline = 0, create_time = 0, done = False, complete_time = 0, id = 0):
+    def __init__(self, description, deadline = 0, create_time = 0, done = False, complete_time = 0, id = None):
         self.description = description
         self.deadline = deadline
         self.create_time = create_time if create_time != 0 else int(time.time())
