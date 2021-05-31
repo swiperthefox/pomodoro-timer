@@ -2,24 +2,31 @@
 
 A subclass Entity of Model maps to a table in the database.
 
-The `_table` attribute specifies the database table name. Default is the lower case of class name.
+The `_table` attribute specifies the database table name. Default is the lower
+case of class name.
 
-The `_fields` attribute defines the field names and their types of the table, in form of Dict[name, type].
+The `_fields` attribute defines the field names and their types of the table, in
+form of Dict[name, type].
 
-The subclass could define default values for the fields, as class variables. If no default value for a 
-field is provided, the default value of its type will be used.
+The subclass could define default values for the fields, as class variables. If
+no default value for a field is provided, the default value of its type will be
+used.
 
 Method defined in Model class:
 
-* __init__(self, *kw): a keyword based constructor, which just initialize the fields with the given values.
-* cls.query_db(**where): return a list of entities that satisfies the criteria stated in the `where` parameters.
-* cls.query_db_fields(field_names, **where): similar as `query_db`, return a list sqlite3.Row objects.
-* save_to_db(fields=[]): insert or update the entity. 
-    If the entity is not saved before, the `fields` parameter is ignored.
-    Otherwise, only update the fields listed in `fields` parameter.
-* cls.create(*args, **kw): create an instance by passing all arguments to the constructor, then save to database by
-calling the save_to_db method.
-method which will insert or update an instance of the subclass to the corresponding table.
+* __init__(self, *kw): a keyword based constructor, which just initialize the
+  fields with the given values.
+* cls.query_db(**where): return a list of entities that satisfies the criteria
+  stated in the `where` parameters.
+* cls.query_db_fields(field_names, **where): similar as `query_db`, return a
+  list sqlite3.Row objects.
+* save_to_db(fields=[]): insert or update the entity. If the entity is not saved
+    before, the `fields` parameter is ignored. Otherwise, only update the fields
+    listed in `fields` parameter.
+* cls.create(*args, **kw): create an instance by passing all arguments to the
+  constructor, then save to database by calling the save_to_db method. method
+  which will insert or update an instance of the subclass to the corresponding
+  table.
 """
 import db
 
@@ -53,11 +60,13 @@ class Model:
         for k, t in cls._fields.items():
             if k not in annotations:
                 annotations[k] = t
-        # the type of `id` field is int, it starts with None value which is intercepted as 'null'
-        # by sqlite3, and a new id will be generated for it.
+        # the type of `id` field is int, it starts with None value which is
+        # intercepted as 'null' by sqlite3, and a new id will be generated for
+        # it.
         cls._fields['id'] = int
         if getattr(cls, 'id', 0) > 0:
-            raise WrongFieldValueError(f'"id" field is reserved for row id, it must be 0 before it get the real row id from database.')
+            raise WrongFieldValueError(f'"id" field is reserved for row id, it \
+                must be 0 before it get the real row id from database.')
         setattr(cls, 'id', None)
     
     def __init__(self, **field_values):
@@ -73,15 +82,15 @@ class Model:
         return new_entity
         
     @classmethod
-    def query_db(cls, **where):
-        sql, params = cls._build_query_sql(cls._fields, **where)   
+    def query_db(cls, where_dict=None, **where_more):
+        sql, params = cls._build_query_sql(cls._fields, where_dict, **where_more)   
         data_list =  db.execute_query(sql, params)
         entities = [cls(**data) for data in data_list]
         return entities
     
     @classmethod
-    def query_db_fields(cls, fields, **where):
-        sql, params = cls._build_query_sql(fields, **where)
+    def query_db_fields(cls, fields, where_dict=None, **where_more):
+        sql, params = cls._build_query_sql(fields, where_dict, **where_more)
         return db.execute_query(sql, params)
         
     def save_to_db(self, fields = []):
@@ -127,16 +136,22 @@ class Model:
         return sql
         
     @classmethod
-    def _build_query_sql(cls, fields=['*'], **where):
+    def _build_query_sql(cls, fields=['*'], where=None, **where_more):
+        if where is None:
+            where = {}
+        for k, v in where_more.items():
+            where[f'{k} ='] = v
+            
         criterial = []
         parameters = []
         for k, v in where.items():
-            if k not in cls._fields:
+            field_name = k.split()[0]
+            if field_name not in cls._fields:
                 print(f'{cls._fields=}')
                 raise WrongFieldNameError(k, cls._table_name)
             else:
-                criterial.append(f'{k} = ?')
-                parameters.append(maybe_apply(cls._fields[k], v))
+                criterial.append(f'{k} ?')
+                parameters.append(maybe_apply(cls._fields[field_name], v))
         if criterial:
             where_clause = " WHERE " + " AND ".join(criterial)
         else:

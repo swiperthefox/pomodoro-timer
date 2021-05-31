@@ -1,3 +1,4 @@
+from taskparser import parse_date_spec
 import tkinter as tk
 from tkinter import ttk
 
@@ -62,6 +63,7 @@ class TodoListWindow(tk.Toplevel):
         title_label = ttk.Label(self.frame, text=todo.description)
         deadline_label = ttk.Label(self.frame, text=format_date(todo.deadline))
         grid_layout(self.frame, [[done_button, title_label, deadline_label]], start_row='end', padx=7, pady=3)
+        
         ##
         #  Update widgets
         ##
@@ -72,7 +74,7 @@ class TodoListWindow(tk.Toplevel):
         subscribe(todo, title_label, 'state-change', on_todo_state_change)
         
     def confirm_new_todo(self, e):
-        todo = tasks.Todo.create(self.new_todo_title.get(), parse_date(self.new_todo_deadline.get()))
+        todo = tasks.Todo.create(self.new_todo_title.get(), parse_date_spec(self.new_todo_deadline.get()))
         self.clear_new_todo_widgets(e)
         self.todo_task.add_todo(todo)
         

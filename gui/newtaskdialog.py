@@ -1,3 +1,5 @@
+from datetime import datetime
+from model.scheduledtask import ScheduledTask
 from .simpledialog import Dialog
 from asset import get_asset_pool
 from tkinter import ttk
@@ -5,6 +7,7 @@ import tkinter as tk
 from model import tasks
 from .utils import grid_layout
 from .tomatobox import TomatoBox
+from taskparser import parse_task_description, parse_date_spec, parse_repeat_pattern
 
 class NewTaskDialog(Dialog):
     """A dialog for creating a new task."""
@@ -18,6 +21,8 @@ class NewTaskDialog(Dialog):
     # Tomatoes: RRGGG
     # Duration: [] Long [] Short
     # Parent  : [ choose a parent    v]
+    # On      : [ date                ]
+    # Repeat  : [ repeat pattern      ]
     # (optional error messages)
     # 
     
@@ -25,7 +30,7 @@ class NewTaskDialog(Dialog):
         get_image = get_asset_pool(self).get_image
         
         t_label = ttk.Label(master, text="Task:", anchor=tk.W)
-        self.t_entry = ttk.Entry(master)
+        self.t_entry = tk.Text(master, width=60, height=2, font=get_asset_pool(self).get_font('normal'))
         
         c_label = ttk.Label(master, text="Tomatoes:", anchor=tk.W)
         self.tomatoes = 0
@@ -36,18 +41,26 @@ class NewTaskDialog(Dialog):
             tomatobox.config(tomatoes=tomatoes)
         tomatobox = TomatoBox(master, [get_image('tomato_dim')]*5, on_choose_tomato)
         
-        self.long_session_var = tk.IntVar()
+        self.long_session_var = tk.StringVar(value='-')
         session_type_label = ttk.Label(master, text="Duration", anchor=tk.W)
         long_session_btn = ttk.Radiobutton(master, text="Long",
-            variable=self.long_session_var, value=1)
+            variable=self.long_session_var, value='=')
         short_session_btn = ttk.Radiobutton(master, text="Short", 
-            variable=self.long_session_var, value=0)
+            variable=self.long_session_var, value='-')
         
-        parent_list = ["None ", *(task.description for task in self.tasks)]
+        parent_list = ["None", *(task.description for task in self.tasks)]
         parent_label = ttk.Label(master, text="Parent", anchor=tk.W)
-        parent_title_var = tk.StringVar()
         self.parent_widget = ttk.Combobox(master, values = parent_list)
+        self.parent_widget.current(0)
         self.parent_widget.state(['readonly'])
+        
+        self.date_var = tk.StringVar()
+        date_label = ttk.Label(master, text="Date", anchor=tk.W)
+        date_entry = ttk.Entry(master, textvariable=self.date_var)
+        
+        self.repeat_var = tk.StringVar()
+        repeat_label = ttk.Label(master, text="Repeat", anchor=tk.W)
+        repeat_entry = ttk.Entry(master, textvariable=self.repeat_var)
         
         self.error_var = tk.StringVar()
         error_label = ttk.Label(master, textvariable=self.error_var, foreground='red', anchor=tk.W)
@@ -56,27 +69,61 @@ class NewTaskDialog(Dialog):
                 [c_label,              tomatobox,                tomatobox],
                 [session_type_label,   long_session_btn, short_session_btn],
                 [parent_label,         self.parent_widget, self.parent_widget],
+                [date_label,           date_entry,          date_entry ],
+                [repeat_label,          repeat_entry,       repeat_entry],
                 [error_label,          error_label,           error_label]]
         grid_layout(master, rows, 0, padx=3, pady=5)
         return self.t_entry
         
     def apply(self):
+        # the options specified in title has priority over setting in the gui field
         selected_parent_index = self.parent_widget.current()
         parent_id = None if selected_parent_index == 0 else self.tasks[selected_parent_index].id
+        parent_title = self.task_option.get('parent', None)
+        if parent_title:
+            for task in self.tasks:
+                if task.description.lower().startswith(parent_title):
+                    parent_id = task.id
+                    break
+                
+        title = self.task_option['title']            
+        tomato = self.task_option.get('tomato', self.tomatoes)
+        task_type = self.task_option.get('type', self.long_session_var.get())
+        onetime_date_spec = self.task_option.get('once', self.date_var.get())
+        repeat_spec = self.task_option.get('repeat', self.repeat_var.get())
             
-        self.result = tasks.Task.create(
-            description = self.t_entry.get().strip().capitalize(),
-            tomato = self.tomatoes,
-            long_session = self.long_session_var.get()==1,
-            parent = parent_id
-        )
+        if onetime_date_spec or repeat_spec:
+            # create a ScheduledTask
+            today = datetime.today()
+            onetime_date = parse_date_spec(onetime_date_spec, today).toordinal()
+            pattern_str = ' '.join(str(i) for i in parse_repeat_pattern(repeat_spec, today))
+            
+            self.result = ScheduledTask.create(
+                title=title.capitalize(),
+                tomato = tomato,
+                type=task_type,
+                once=onetime_date,
+                pattern=pattern_str
+            )
+        elif task_type == '.':
+            # create todo task
+            self.result = tasks.Todo.create(title, 0)
+        else:
+            # create normal task
+            self.result = tasks.Task.create(
+                description = title.capitalize(),
+                tomato = tomato,
+                long_session = task_type == '=',
+                parent = parent_id
+            )
     
     def validate(self):
-        if len(self.t_entry.get().strip()) == 0:
+        self.task_option = parse_task_description(self.t_entry.get('0.0', tk.END), datetime.today())
+        if len(self.task_option.get('title', '')) == 0:
             self.error_var.set("Task description can't be empty .")
             return False
-        if self.tomatoes == 0:
-            self.error_var.set("Must choose some tomatoes.")
+        if self.tomatoes == 0 and self.task_option.get('tomato', 0) == 0 and self.task_option['type'] != '.':
+            self.error_var.set("Normal task must specify the number of tomatoes.")
             return False
         self.error_var.set('')
         return True

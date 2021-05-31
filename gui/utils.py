@@ -94,3 +94,7 @@ def subscribe(observable, widget: tk.Widget, topic, callback):
     """
     observable.subscribe(topic, callback)
     widget.bind('<Destroy>', lambda e: observable.unsubscribe(topic, callback), add=True)
+
+def trace(var, widget, topic, callback):
+    cbname = var.trace_add(topic, callback)
+    widget.bind('<Destroy>', lambda e: var.trace_remove(topic, cbname), add=True)

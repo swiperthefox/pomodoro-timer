@@ -8,17 +8,18 @@ CREATE TABLE IF NOT EXISTS "task" (
 	"progress"	INTEGER NOT NULL DEFAULT 0,
 	"parent"    INTEGER REFERENCES task (id) 
 );
-
-CREATE TABLE IF NOT EXISTS "repeated_task" (
+CREATE TABLE "repeated_task" (
 	"id"	INTEGER,
 	"title"	TEXT NOT NULL,
 	"tomato"	INTEGER NOT NULL,
-	"schedule"	TEXT NOT NULL,
-	"last_scheduled"	INTEGER DEFAULT 0,
-	"type"	INTEGER NOT NULL DEFAULT 2,
+	"once"	INTEGER NOT NULL,
+	"next_event"	INTEGER NOT NULL DEFAULT 0,
+	"pattern"	TEXT NOT NULL DEFAULT '',
+	"type"	TEXT NOT NULL DEFAULT '-',
+	"done"	INTEGER NOT NULL DEFAULT 0,
+	"last_gen"	INTEGER NOT NULL DEFAULT 0,
 	PRIMARY KEY("id" AUTOINCREMENT)
-)
-
+);
 CREATE TABLE IF NOT EXISTS "session" (
 	"id"	INTEGER NOT NULL UNIQUE,
 	"task"	INTEGER,
