@@ -7,7 +7,7 @@ from utils import Weekdays
 class PeriodicSchedulerTest(unittest.TestCase):
     "test PeriodicScheduler."
     def single_case(self, scheduler, start, expected):
-        result = scheduler.next_occurrance_after(start)
+        result = scheduler.next_occurrance_after(start.toordinal())
         self.assertEqual(result.date(), expected)
     
     def setUp(self) -> None:
@@ -93,9 +93,9 @@ class PeriodicSchedulerTest(unittest.TestCase):
             date(2021, 5, 15))
             
     def test_once_schedule_after_the_day(self):
-        noexist = self.once_scheduler_2021_5_15.next_occurrance_after(date(2021, 5, 16))
+        noexist = self.once_scheduler_2021_5_15.next_occurrance_after(date(2021, 5, 16).toordinal())
         self.assertEqual(noexist, None)
             
     def test_once_schedule_before_the_day(self):
-        the_day = self.once_scheduler_2021_5_15.next_occurrance_after(date(2021, 5, 14))
+        the_day = self.once_scheduler_2021_5_15.next_occurrance_after(date(2021, 5, 14).toordinal())
         self.assertEqual(the_day.date(), date(2021, 5, 15))

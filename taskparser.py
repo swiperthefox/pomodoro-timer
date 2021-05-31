@@ -188,9 +188,5 @@ def parse_date_spec(pattern, start: datetime=None) -> datetime:
                 
             return FIRST_DAY if the_day < start else the_day
             
-def date2datetime(d):
-    return datetime(d.year, d.month, d.day)
                         
-def parse_date_complex(s, base=date.today()):
-    return 15
    

@@ -15,8 +15,8 @@ class NoOrmClassDefinitionTest(unittest.TestCase):
                 'nonexist_int': int,
                 'nonexist_str': str
             }
-        self.assertEqual(A.nonexist_int, 0)
-        self.assertEqual(A.nonexist_str, '')
+        self.assertEqual(A.nonexist_int, 0)  #type: ignore
+        self.assertEqual(A.nonexist_str, '') #type: ignore
 
 class NoORMTest(unittest.TestCase):
     """Tests that based on one texture class."""

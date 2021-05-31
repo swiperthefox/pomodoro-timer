@@ -7,71 +7,77 @@ from model import tasks
 
 @dataclass
 class ScheduledTask(Model):
-    """A ScheduledTask is a task template to generate a task on a certain day (repeatedly or not).
-    
-    Other than the information of the desired task, it keeps the following data for event schedule:
-    
-    once: a single day on which the task will be generated. It stores the ordinal of that day.
-    pattern: a repeat pattern for repeatedly occurred task. It's a string of 4 comma seprated ints.
-        (see PeriodicScheduler for more detail of the format.)
-    next_event: it's just a cache that saves the calculated next event, so that if the next event will
-        happen after 1 year, there is no need to calculate it everyday.
-    last_gen: the day on which this task is examined, to prevent generating the same task multiple times
-        in one day.
+    """A ScheduledTask is a task template to generate a task on a certain day
+    (repeatedly or not).
+
+    Other than the information of the desired task, it keeps the following data
+    for event schedule:
+
+    once: a single day on which the task will be generated. It stores the
+    ordinal of that day.
+
+    pattern: a repeat pattern for repeatedly occurred task. It's a string of 4
+    comma seprated ints. (see PeriodicScheduler for more detail of the format.) 
+
+    next_event: it's just a cache that saves the calculated next event, so that
+    before the next_event happends, the schedular will not be called again.
+
+    last_gen: the day on which this task is examined, to prevent from generating
+    the same task multiple times in one day.
     """
     _table_name = "repeated_task"
     _fields = {
-        'title': str,
-        'tomato': int,
-        'type': str,
-        
+        'id': int,
+        # info for when to generate
         'once': int,    
         'pattern': str, 
         'next_event': int,
         'last_gen': int,
         'done': bool,
-        'id': int
+        # info for new task
+        'title': str,
+        'tomato': int,
+        'type': str
     }
     LONG = '='
     SHORT = '-'
     TODO = '.'
     
-    def get_task_for_date(self, day: datetime):
+    def get_task_for_date(self, day_ordinal):
         "Get the (possibly) new task for `today`."
         
-        # check if tasks has be generated for today
-        today = day.date()
-        if self.last_gen >= today.toordinal():
+        # check if tasks has been generated for today
+        if self.last_gen >= day_ordinal:
             return None
             
-        # A ScheduledTask may generate a task for two reasons:
-        # 1. one time schedule on a certain day
-        # 2. because of the "repeat" setting.
-        print('once:', f'--{self.once}--')
-        one_time_schedule = date.fromordinal(int(self.once)) # case 1
+        # A ScheduledTask may generate a new task for one of two reasons:
+        # 1. the one time schedule applies
+        one_time_applies = self.once == day_ordinal
         
-        repeat_scheduler = PeriodicScheduler.from_string(self.pattern)
+        # 2. the "repeat" setting applies
+        if self.next_event >= day_ordinal: # the cache is still valid
+            next_event = self.next_event
+        else:
+            scheduler = PeriodicScheduler.from_string(self.pattern)
+            next_event = scheduler.next_occurrance_after(day_ordinal)
         
-        next_event = (date.fromordinal(self.next_event) # self.next_event is not expired
-            if self.next_event >= today.toordinal()
-            else repeat_scheduler.next_occurrance_after(today) # self.next_event is expired, calculate next event
-        )
-        
+        repeat_pattern_applies = next_event == day_ordinal
+
         result = None
-        if next_event == today or one_time_schedule == today:
+        if one_time_applies or repeat_pattern_applies:
             result = self.make_task() # don't return, still need to do some bookkeeping
         
         # bookkeeping
         changed_fields = ['last_gen']
-        self.last_gen = today.toordinal()
+        self.last_gen = day_ordinal
         
-        has_future_event = next_event and next_event > today
-        has_one_time_schedule = one_time_schedule > today
+        has_future_event = next_event > day_ordinal
+        has_one_time_schedule = self.once > day_ordinal
         if not (has_one_time_schedule or has_future_event):
             self.done = True
             changed_fields.append('done')
-        elif has_future_event:
-            self.next_event = next_event.toordinal()
+        elif has_future_event and next_event != self.next_event:
+            self.next_event = next_event
             changed_fields.append('next_event')
         else:
             pass
@@ -87,6 +93,13 @@ class ScheduledTask(Model):
                 tomato=int(self.tomato),
                 long_session=self.type == self.LONG
             )
+    def __type_hint(self):
+        """this method is never used, it just provide the type info of the generated fields."""
+        self.title = ''
+        self.tomato = 0
+        self.type = ''
+        self.once = 1
+        self.pattern =''
         
 class PeriodicScheduler:
     """Specify a repeat pattern of days.
@@ -100,9 +113,10 @@ class PeriodicScheduler:
         self.day = day
         self.weekday = weekday
         
-    def next_occurrance_after(self, start):
+    def next_occurrance_after(self, start_ordianl):
         """Return the next occurrance of a day that matches the pattern and no before than the day `start`.
         """
+        start = date.fromordinal(start_ordianl)
         year, month, day, weekday = start.year, start.month, start.day, start.weekday()
         cycle_type = self.get_type()
         if cycle_type is None:

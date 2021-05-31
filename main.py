@@ -2,7 +2,7 @@ from model.scheduledtask import ScheduledTask
 import tkinter
 from tkinter.messagebox import askyesno
 import time
-import datetime
+from datetime import date
 import os
 
 from gui import gui
@@ -18,14 +18,7 @@ class App:
         self.config = appconfig.PomodoroTimerConfig('config.json')
         first_run = not os.path.exists(db_name)
         self.dm = DataManager(db_name)
-        # db.open_database(db_name)
-        
-        # self.task_list = tasks.TaskList()
-        # self.task_list.load_from_db(done=0)
-        # todo_list = tasks.EntityList(tasks.Todo)
-        # todo_list.load_from_db(done=0)
-        # self.todo_task = tasks.TodoTask(self.task_list.todo_task_id, todo_list)
-        
+
         # gui
         self.window = tkinter.Tk()
         self.session_running = tkinter.BooleanVar(value=False)
@@ -104,27 +97,15 @@ class App:
                 self.window.quit()
         else:
             self.window.quit()
-            
-    # def load_data(self):
-    #     self.task_list.load_from_db(done=0)
-    #     self.todo_task.load_todo_from_db()
-        
-    #     today = datetime.datetime.today()
-    #     for schdedule in ScheduledTask.query_db():
-    #         new_task = schdedule.get_task_for_date(today)
-    #         if isinstance(new_task, tasks.Todo):
-    #             self.todo_task.add_todo(new_task)
-    #         elif isinstance(new_task, tasks.Task):
-    #             self.task_list.add(new_task)
-                
+
     def start_cron(self):
         def reload_task(last_reload_date):
-            today = datetime.datetime.today()
-            if today.toordinal() != last_reload_date:
+            today = date.today().toordinal()
+            if today != last_reload_date:
                 self.dm.load_data(today)
-                last_reload_date = today.toordinal()
+                last_reload_date = today
             self.window.after(3600000, reload_task, last_reload_date) # 3600000 = 1 hour
-        reload_task(datetime.datetime.today().day)
+        reload_task(0)
         
 if __name__ == '__main__':
     import sys, os

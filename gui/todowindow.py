@@ -74,7 +74,8 @@ class TodoListWindow(tk.Toplevel):
         subscribe(todo, title_label, 'state-change', on_todo_state_change)
         
     def confirm_new_todo(self, e):
-        todo = tasks.Todo.create(self.new_todo_title.get(), parse_date_spec(self.new_todo_deadline.get()))
+        deadline = parse_date_spec(self.new_todo_deadline.get()).toordinal()
+        todo = tasks.Todo.create(self.new_todo_title.get(), deadline)
         self.clear_new_todo_widgets(e)
         self.todo_task.add_todo(todo)
         
@@ -95,7 +96,7 @@ class TodoListWindow(tk.Toplevel):
             self.new_todo_widgets = [done_button, title_entry, deadline_entry]
             for entry in [title_entry, deadline_entry]:
                 entry.bind('<Return>', self.confirm_new_todo)
-                entry.bind('<Escape>', self.clear_new_todo_widgets)
+                entry.bind('<Control-c>', self.clear_new_todo_widgets)
         grid_layout(self.frame, [self.new_todo_widgets], start_row='end', padx=7, pady=3)
         self.new_todo_widgets[1].focus_set()
     

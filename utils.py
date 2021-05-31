@@ -17,9 +17,8 @@ weekday_dict = dict((v, i) for i, v in enumerate(
 def format_date(d):
     if d == 0:
         return ''
-    date = datetime.fromtimestamp(d)
     today = datetime.today().toordinal()
-    diff = date.toordinal() - today
+    diff = d - today
     if diff < 0:
         return "past"
     elif diff == 0:
@@ -29,7 +28,8 @@ def format_date(d):
     elif diff < 7:
         return f"in {diff} days"
     else:
-        return date.strftime("%m-%d")
+        day = date.fromordinal(d)
+        return day.strftime("%m-%d")
 
 def parse_date(s):
     return 0
