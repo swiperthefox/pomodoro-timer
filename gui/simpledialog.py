@@ -8,24 +8,12 @@
 # fredrik@pythonware.com
 # http://www.pythonware.com
 #
-"""This modules handles dialog boxes.
-
-It contains the following public symbols:
-
-SimpleDialog -- A simple but flexible modal dialog box
-
-Dialog -- a base class for dialogs
-
-askinteger -- get an integer from the user
-
-askfloat -- get a float from the user
-
-askstring -- get a string from the user
+"""The file is an adapted version of the simpledialog.py in python standard
+library, replaced all tkinter widgets with their ttk versions.
 """
 
 from tkinter import Toplevel, LEFT, ACTIVE
-from tkinter.constants import S
-from tkinter.ttk import Button, Frame, Label
+from tkinter.ttk import Button, Frame
 from gui.utils import add_content_frame
 
 class Dialog(Toplevel):

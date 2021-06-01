@@ -10,6 +10,24 @@ from .utils import grid_layout
 from .tomatobox import TomatoBox
 from taskparser import parse_task_description, parse_date_spec, parse_repeat_pattern
 
+
+def new_task(master, parent_tasks):
+    new_task_dialog = NewTaskDialog(master, "Add Task", parent_tasks)
+    new_task = new_task_dialog.result
+    if isinstance(new_task, ScheduledTask):
+        today = datetime.today()
+        new_task.last_gen = today.toordinal()
+        new_task.save_to_db(['last_gen'])
+        new_task = new_task.get_task_for_date(today)
+    return new_task
+    
+        # if isinstance(new_task, models.Todo):
+        #     self.todo_task.add_todo(new_task)
+        # elif isinstance(new_task, models.Task):
+        #     self.task_list.add(new_task)
+        # else:
+        #     pass # new task for today
+
 class NewTaskDialog(Dialog):
     """A dialog for creating a new task."""
     def __init__(self, master, title, tasks):
@@ -88,7 +106,8 @@ class NewTaskDialog(Dialog):
         task_type = self.task_option.get('type', self.long_session_var.get())
         onetime_date_spec = self.task_option.get('once', self.date_var.get())
         repeat_spec = self.task_option.get('repeat', self.repeat_var.get())
-            
+        
+        # now create the tasks
         if onetime_date_spec or repeat_spec:
             # create a ScheduledTask
             today = datetime.today()

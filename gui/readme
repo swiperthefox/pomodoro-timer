@@ -1,0 +1,38 @@
+Code layout:
+
+So we have the models (M, the data) and views (V, the GUI widgets), we need to
+connect these two parts (C, controller).
+
+In this project, the controllers are placed near the code for views:
+
+If a view W need to display information of some data D, the rendering function
+of W have two sections: create widget and update widget.
+
+             ------------                             ------------
+             |          |   ------(1) initial-------> |          |
+             |   Data   |     -----(2) update ----    |   View   |
+             |          |  --                     \   |          |
+             |          |  <-                       ->|          |
+             |          |     \                    -- |          |
+             |          |       ----(3) event ----    |          |
+             ------------                             ------------
+
+Create Widget: describes how the view is created (1), and has event bindings
+that will change the data (3) in response of inputs from the widgets. 
+
+Update Widget: here are some functions that will update the view when the data
+changes, they are functions that takes the changes of data as parameters, and
+make use of closures to maintain access to the affected widgets. These functions
+are then registered as observers for the data changes.
+
+Reasoning of the choice of layout:
+
+The controller need to have access to the data and the affected widgets. There
+is a place that the data and the widget meet naturally: at the creation site of
+the widgets. If we define the controllers here, we will have direct access to
+the data and the associated widgets in the function.
+
+Otherwise, to define the controller at other places, we need to pass the widgets
+or(and) the data around, or query the widget system every time we want a
+specific widget (in lieu of getDocumentById/JQuery of JS world).
+
