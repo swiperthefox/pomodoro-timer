@@ -1,13 +1,15 @@
-from model.scheduledtask import ScheduledTask
 import tkinter
 from tkinter.messagebox import askyesno
 import time
 from datetime import date
 import os
 
-from gui import gui
-from model import appconfig, tasks
-import db
+from gui.app import render_app_window
+from gui.progresswindow import ProgressWindow
+from gui.sessionnotedialog import SessionNoteDialog
+from gui.help import HelpWindow
+
+from model import appconfig, models
 import audio
 from datamanager import DataManager
 
@@ -22,7 +24,7 @@ class App:
         # gui
         self.window = tkinter.Tk()
         self.session_running = tkinter.BooleanVar(value=False)
-        gui.render_app_window(self, title, "+700+400")
+        render_app_window(self, title, "+700+400")
         self.window.protocol('WM_DELETE_WINDOW', self.on_exit)
         
         def on_font_change(path, value):
@@ -33,7 +35,7 @@ class App:
         self.show_main_window()
         self.start_cron()
         if first_run:
-            help = gui.HelpWindow(self.window, "Quick Start")
+            help = HelpWindow(self.window, "Quick Start")
         self.window.mainloop()
 
     def start_session(self, task):
@@ -44,7 +46,7 @@ class App:
         self.window.lower()
         self.session_running.set(True)
         
-        window = gui.ProgressWindow(self.window, task.description, work_time, geometry='+1640+3',
+        window = ProgressWindow(self.window, task.description, work_time, geometry='+1640+3',
             keep_on_top=self.config.get_progress_on_top(),
             minimize=self.config.get_minimal_progress_window())
         start_time = int(time.time())
@@ -66,18 +68,18 @@ class App:
         end_time = int(time.time())
         if self.config.show_note_editor():
             # at the same time, allow the user enter a short note about last session
-            note_editor = gui.SessionNoteDialog(self.window, task.description, "Session Note")
+            note_editor = SessionNoteDialog(self.window, task.description, "Session Note")
             note = note_editor.result.strip() if note_editor.result else  ""
         else:
             note = ""
-        tasks.Session.insert_session(task.id, start_time, end_time, note)
+        models.Session.create(task.id, start_time, end_time, note)
     
     def start_rest(self, break_time):
         break_message_template = """\
         Take a %d minutes break.
         Walk a bit, drink some water, and relax.
         """
-        window = gui.ProgressWindow(self.window, 
+        window = ProgressWindow(self.window, 
             break_message_template % break_time,
             break_time,
             '+600+280',

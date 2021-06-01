@@ -1,22 +1,21 @@
 from datetime import date, datetime, timedelta
 import re
 
-from utils import lastest_valid_date_before, weekday_dict
-from model.scheduledtask import ScheduledTask
+from dateutils import lastest_valid_date_before, weekday_dict
 
-def parse_task_description(task_description, today):
+def parse_task_description(task_description):
     """Parse the extended task description, return a dict of the options.
     
     A task can be specified in an "extended task description" format. The format is as follows:
     
-    task_title #n [optional fields]
+    task_title [#n] [@show_time] [*repeat_pattern] [=duration_type] [^parent title^]
     
     where `task_title` is the description of the task and `n` is the number of session assigned.
     
-    The optional fields are some fields that starts with some special characters. The fields could
+    The optional fields are some fields that starts with a few special characters. The fields could
     appear in any order.
     
-    - @show_time: When to list the task in the task list. Multiple show times will be combined.
+    - @show_time: When to add the task in the task list.
     
     Possible format: 
     1. @04-15: show at the given date. If the date is not valid, use the latest day that is prior
@@ -65,7 +64,6 @@ def parse_task_description(task_description, today):
         elif name == '#':
             options['tomato'] = min(5, max(int(option_body), 1))
         elif name == '=':
-            # task_type = {'=': ScheduledTask.LONG, '-': ScheduledTask.SHORT, '.': ScheduledTask.TODO}[option_body]
             options['type'] = option_body
         elif name == '^':
             options['parent'] = part[1:-1].lower()
@@ -112,7 +110,7 @@ def parse_repeat_pattern(pattern, start: date):
         
         return []
 
-# FIRST_DAY is the `first day`, way back in the past. it serves as None
+# FIRST_DAY is the ordinal `first day`, way back in the past. it serves as None
 # since we are dealing future events here.
 FIRST_DAY = datetime.fromordinal(1)
 
@@ -138,7 +136,7 @@ def parse_date_spec(pattern, start: datetime=None) -> datetime:
         return FIRST_DAY
     else:
         matched_parts = m.groupdict()
-        if matched_parts['offset']: # offset format
+        if matched_parts['offset']: # offset format @+1w
             unit = matched_parts['unit'] or 'd'
             quantity = int(matched_parts['offset'])
             if unit == 'w':
@@ -158,7 +156,7 @@ def parse_date_spec(pattern, start: datetime=None) -> datetime:
         elif matched_parts['weekday']:
             target_dow = weekday_dict[matched_parts['weekday'].lower()]
             return start + timedelta((target_dow - start.weekday())%7)
-        else: # date format
+        else: # date format @04-19
             y, m, d = [matched_parts[name] for name in ['year', 'month', 'day']]
             year = start.year if y is None else int(y)
             month = start.month if m is None else int(m)

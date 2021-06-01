@@ -31,10 +31,6 @@ def format_date(d):
         day = date.fromordinal(d)
         return day.strftime("%m-%d")
 
-def parse_date(s):
-    return 0
-    
-
 def lastest_valid_date_before(year, month, day):
     month = max(1, min(month, 12))
     while True:

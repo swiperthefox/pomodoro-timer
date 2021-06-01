@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, date
 
 from .noorm import Model
-from utils import lastest_valid_date_before
-from model import tasks
+from dateutils import lastest_valid_date_before
+from model import models 
 
 @dataclass
 class ScheduledTask(Model):
@@ -46,13 +46,13 @@ class ScheduledTask(Model):
     def get_task_for_date(self, day_ordinal):
         "Get the (possibly) new task for `today`."
         
-        # check if tasks has been generated for today
+        # check if we have tried for today
         if self.last_gen >= day_ordinal:
             return None
             
         # A ScheduledTask may generate a new task for one of two reasons:
-        # 1. the one time schedule applies
-        one_time_applies = self.once == day_ordinal
+        # 1. the onetime schedule applies
+        onetime_applies = self.once == day_ordinal
         
         # 2. the "repeat" setting applies
         if self.next_event >= day_ordinal: # the cache is still valid
@@ -60,18 +60,16 @@ class ScheduledTask(Model):
         else:
             scheduler = PeriodicScheduler.from_string(self.pattern)
             next_event = scheduler.next_occurrance_after(day_ordinal)
-        
         repeat_pattern_applies = next_event == day_ordinal
 
-        result = None
-        if one_time_applies or repeat_pattern_applies:
-            result = self.make_task() # don't return, still need to do some bookkeeping
+        should_schedule = onetime_applies or repeat_pattern_applies
+        result = self.make_task() if should_schedule else None
         
         # bookkeeping
         changed_fields = ['last_gen']
         self.last_gen = day_ordinal
         
-        has_future_event = next_event > day_ordinal
+        has_future_event = next_event >= day_ordinal
         has_one_time_schedule = self.once > day_ordinal
         if not (has_one_time_schedule or has_future_event):
             self.done = True
@@ -86,9 +84,9 @@ class ScheduledTask(Model):
     
     def make_task(self):
         if self.type == self.TODO:
-            return tasks.Todo.create(description=self.title)
+            return models.Todo.create(description=self.title)
         else:
-            return tasks.Task.create(
+            return models.Task.create(
                 description=self.title,
                 tomato=int(self.tomato),
                 long_session=self.type == self.LONG
@@ -123,7 +121,6 @@ class PeriodicScheduler:
             return None
         elif cycle_type == 'o':
             the_day = lastest_valid_date_before(self.year, self.month, self.day)
-            print('the day is', the_day, start)
             if the_day.date() >= start:
                 return the_day
             else:

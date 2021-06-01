@@ -87,7 +87,7 @@ def add_content_frame(toplevel: tk.Toplevel, **kw):
     toplevel.columnconfigure(0, weight=1)
     return frame
     
-def subscribe(observable, widget: tk.Widget, topic, callback):
+def subscribe(observable, topic, callback, widget: tk.Widget):
     """Register `callback` for the `observable`'s `topic` event. 
     
     Also arrange to remove the callback when the related widget is destroyed.
@@ -95,6 +95,10 @@ def subscribe(observable, widget: tk.Widget, topic, callback):
     observable.subscribe(topic, callback)
     widget.bind('<Destroy>', lambda e: observable.unsubscribe(topic, callback), add=True)
 
-def trace(var, widget, topic, callback):
+def trace(var, topic, callback, widget):
+    """Register `callback` for the actions of the given `var`. 
+    
+    Also arrange to remove the callback when the related widget is destroyed.
+    """
     cbname = var.trace_add(topic, callback)
     widget.bind('<Destroy>', lambda e: var.trace_remove(topic, cbname), add=True)

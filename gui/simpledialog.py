@@ -24,6 +24,7 @@ askstring -- get a string from the user
 """
 
 from tkinter import Toplevel, LEFT, ACTIVE
+from tkinter.constants import S
 from tkinter.ttk import Button, Frame, Label
 from gui.utils import add_content_frame
 
@@ -76,8 +77,9 @@ class Dialog(Toplevel):
             self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
                                       parent.winfo_rooty()+50))
 
-        self.deiconify() # become visible now
-
+        self.deiconify() # become visible now   
+        self.lift()
+        
         self.initial_focus.focus_set()
 
         # wait for window to appear on screen before calling grab_set

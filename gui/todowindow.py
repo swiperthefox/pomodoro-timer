@@ -3,14 +3,14 @@ import tkinter as tk
 from tkinter import ttk
 
 from .utils import subscribe, add_content_frame, grid_layout
-from model import tasks
+from model import models
 from asset import get_asset_pool
-from utils import format_date, parse_date
+from dateutils import format_date
 
 class TodoListWindow(tk.Toplevel):
     todo_window = None
     
-    def __init__(self, master, todo_task: tasks.TodoTask):
+    def __init__(self, master, todo_task: models.TodoTask):
         super().__init__(master)
         self['bg'] = 'black'
         self.minsize(width=500, height=400)
@@ -18,8 +18,8 @@ class TodoListWindow(tk.Toplevel):
         self.todo_task = todo_task
         self.frame = add_content_frame(self, padding=(20, 20, 20, 20))
         self.render_todos(todo_task)
-        subscribe(todo_task, self.frame, 'change', self.render_todos)
-        subscribe(todo_task, self.frame, 'add', self.render_todo)
+        subscribe(todo_task, 'change', self.render_todos, self.frame)
+        subscribe(todo_task, 'add', self.render_todo, self.frame)
     
         self.frame.columnconfigure(1, weight=1)
         self.new_todo_widgets = None
@@ -52,13 +52,14 @@ class TodoListWindow(tk.Toplevel):
         # Update widget state
         ##
         
-    def render_todo(self, todo: tasks.Todo):
+    def render_todo(self, todo: models.Todo):
         ##
         # Create widgets
         ##
         done_state_var = tk.BooleanVar(value=todo.done)
         def toggle_done():
-            self.todo_task.set_todo_state(todo.id, done_state_var.get())
+            todo.set_done_state(done_state_var.get())
+            self.todo_task.todo_state_changed(todo.id, done_state_var.get())
         done_button = ttk.Checkbutton(self.frame, command=toggle_done, variable=done_state_var)
         title_label = ttk.Label(self.frame, text=todo.description)
         deadline_label = ttk.Label(self.frame, text=format_date(todo.deadline))
@@ -71,11 +72,12 @@ class TodoListWindow(tk.Toplevel):
             asset_pool = get_asset_pool(self.frame)
             font_type = 'strikeout' if todo.done else 'normal'
             title_label.config(font = asset_pool.get_font(font_type)) 
-        subscribe(todo, title_label, 'state-change', on_todo_state_change)
+        subscribe(todo, 'state-change', on_todo_state_change, title_label)
         
     def confirm_new_todo(self, e):
-        deadline = parse_date_spec(self.new_todo_deadline.get()).toordinal()
-        todo = tasks.Todo.create(self.new_todo_title.get(), deadline)
+        deadline_text = self.new_todo_deadline.get()
+        deadline = parse_date_spec(deadline_text).toordinal() if deadline_text else 0
+        todo = models.Todo.create(self.new_todo_title.get(), deadline)
         self.clear_new_todo_widgets(e)
         self.todo_task.add_todo(todo)
         
@@ -83,17 +85,17 @@ class TodoListWindow(tk.Toplevel):
         self.new_todo_title.set('')
         self.new_todo_deadline.set('')
         for child in self.new_todo_widgets:
-            child.grid_forget()
+            if child: child.grid_forget()
         
     def show_new_todo_widget(self):
         if not self.new_todo_widgets:
-            done_state_var = tk.BooleanVar(value=False)
-            done_button = ttk.Checkbutton(self.frame, variable=done_state_var, state=tk.DISABLED)
+            # done_state_var = tk.BooleanVar(value=False)
+            # done_button = ttk.Checkbutton(self.frame, variable=done_state_var, state=tk.DISABLED)
             self.new_todo_title = tk.StringVar()
             self.new_todo_deadline = tk.StringVar()
             title_entry = ttk.Entry(self.frame, textvariable=self.new_todo_title)
             deadline_entry = ttk.Entry(self.frame, textvariable=self.new_todo_deadline)
-            self.new_todo_widgets = [done_button, title_entry, deadline_entry]
+            self.new_todo_widgets = [None, title_entry, deadline_entry]
             for entry in [title_entry, deadline_entry]:
                 entry.bind('<Return>', self.confirm_new_todo)
                 entry.bind('<Control-c>', self.clear_new_todo_widgets)

@@ -8,7 +8,7 @@ from .newtaskdialog import NewTaskDialog
 from .tomatobox import TomatoBox
 from .todowindow import TodoListWindow
 from .sessionhistorywindow import SessionHistoryWindow
-from model import tasks
+from model import models
 from model.scheduledtask import ScheduledTask
 
 class TaskListFrame(ttk.Frame):
@@ -24,8 +24,8 @@ class TaskListFrame(ttk.Frame):
         self.todo_task = todo_list
         self.start_pomodoro_command = start_pomodoro
         self.running_session_flag = running_session_flag
-        subscribe(task_list, self, 'change', self.display_task_list)
-        subscribe(task_list, self, 'add', self.display_new_task)
+        subscribe(task_list, 'change', self.display_task_list, self)
+        subscribe(task_list, 'add', self.display_new_task, self)
     
         self.display_task_list(task_list)
                     
@@ -61,9 +61,9 @@ class TaskListFrame(ttk.Frame):
                     new_task.last_gen = today.toordinal()
                     new_task.save_to_db()
                     new_task = new_task.get_task_for_date(today)
-                if isinstance(new_task, tasks.Todo):
+                if isinstance(new_task, models.Todo):
                     self.todo_task.add_todo(new_task)
-                elif isinstance(new_task, tasks.Task):
+                elif isinstance(new_task, models.Task):
                     self.task_list.add(new_task)
                 else:
                     pass # new task for today
@@ -104,8 +104,7 @@ class TaskListFrame(ttk.Frame):
         
         tomato_list = ([get_image('tomato_red')]*task.progress + 
             [get_image('tomato_green')]*task.remaining_pomodoro())
-        def show_session_history(e):
-            show_session_history_for_task(self, task)
+        show_session_history = make_session_history_displayer(self, task)
         # tk does not propagate events from child widget to its master, so we need to bind the action
         # to both the tomato images and the container.
         tomato_box = TomatoBox(self, tomato_list, show_session_history)
@@ -132,9 +131,11 @@ class TaskListFrame(ttk.Frame):
             can_start = not has_running_session and task.can_start()
             start_btn.config(state = tk.NORMAL if can_start else tk.DISABLED)
         
-        subscribe(task, title_label, 'task-state-change', on_task_update)    
-        trace(self.running_session_flag, title_label, ['write'], 
-            lambda v,i, m: update_start_button_state(self.running_session_flag.get()))
+        subscribe(task, 'task-state-change', on_task_update, title_label)    
+        trace(self.running_session_flag, 
+            ['write'], 
+            lambda v,i, m: update_start_button_state(self.running_session_flag.get()),
+            title_label)
         
         ##
         # finish up
@@ -146,10 +147,13 @@ class TaskListFrame(ttk.Frame):
         
     def render_todo_task(self):
         """Render the special task "Misc. todos".
-        
+
         Differences between the gui of this task and gui of others:
-        1. This task can't mark as `done`. Whether this task is `done` depends on how many unfinished
-        todos left. `Done` button is replaced with a label showing the number of unfinished todos.
+
+        1. This task can't mark as `done`. Whether this task is `done` depends
+           on how many unfinished todos left. `Done` button is replaced with a
+           label showing the number of unfinished todos.
+
         2. Click on the task title will open a todo list.
         """
         ##
@@ -157,7 +161,7 @@ class TaskListFrame(ttk.Frame):
         # 
         # [start]  5  Misc. todos  RRGGG
         ##
-        task: tasks.TodoTask = self.todo_task 
+        task: models.TodoTask = self.todo_task 
         get_image = get_asset_pool(self).get_image
         
         def show_todo_window(e):
@@ -178,8 +182,7 @@ class TaskListFrame(ttk.Frame):
         
         tomato_list = ([get_image('tomato_red')]*task.progress + 
             [get_image('tomato_green')]*task.remaining_pomodoro())
-        def show_session_history(e):
-            show_session_history_for_task(self, task)
+        show_session_history = make_session_history_displayer(self, task)
         # tk does not propagate events from child widget to its master, so we need to bind the action
         # to both the tomato images and the container.
         tomato_box = TomatoBox(self, tomato_list, show_session_history)
@@ -207,17 +210,22 @@ class TaskListFrame(ttk.Frame):
             can_start = not has_running_session and task.can_start()
             start_btn.config(state = tk.NORMAL if can_start else tk.DISABLED)
         
-        subscribe(task, title_label, 'task-state-change', on_task_update)
-        trace(self.running_session_flag, title_label, ['write'], 
-            lambda v,i, m: update_start_button_state(self.running_session_flag.get()))
+        subscribe(task, 'task-state-change', on_task_update, title_label)
+        trace(self.running_session_flag, 
+            ['write'], 
+            lambda v,i, m: update_start_button_state(self.running_session_flag.get()),
+            title_label)
         
         ## finish up
         on_task_update(task)
         return row
 
-def show_session_history_for_task(master, task: tasks.Task):
-    if not task._showing_sessions:
-        task._showing_sessions = True
-        sessions = tasks.Session.load_sessions_for_task(task.id)
-        SessionHistoryWindow(master, sessions, task)
+def make_session_history_displayer(master, task: models.Task):
+    showing = [False]
+    def toggle_session_window(e):
+        if not showing[0]:
+            showing[0] = True
+            sessions = models.Session.load_sessions_for_task(task.id)
+            SessionHistoryWindow(master, sessions, task.description, showing)
+    return toggle_session_window
   

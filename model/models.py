@@ -26,7 +26,7 @@ class Task(Observable, Model):
     subtasks: List = field(default_factory=list, init=False, hash=False)
     
     def remaining_pomodoro(self):
-        return self.tomato - self.progress # type: ignore
+        return self.tomato - self.progress
         
     def incr_progress(self):
         self.progress += 1
@@ -59,51 +59,20 @@ class Task(Observable, Model):
         else:
             return todo_data[0]
             
-class EntityList(Observable):
-    _topics = ['change', 'add']
-    
-    def __init__(self, entity_class) -> None:
-        super().__init__()
-        self.entity_class = entity_class
-        self.entities = []
-    
-    def load_from_db(self, **where):
-        self.entities = self.entity_class.load_list(**where)
-        self.notify('change', self.entities)
+    def __type_hint(self):
+        self.description = ''
+        self.tomato=0
         
-    def add(self, entity):
-        self.entities.append(entity)
-        self.notify('add', entity)
-    
-    def __iter__(self):
-        return iter(self.entities)
-    
-    def __getitem__(self, index):
-        return self.entities[index]
-            
 class TaskList(Observable):
+    """TaskList keeps the tasks in a parent-child hierarchy."""
     _topics = ['change', 'add']
     def __init__(self):
         self.tasks = {}
         
     def set_task_list(self, task_list):
-        # self.todo_task_id = self.find_or_create_todo_task()
         for task in sorted(task_list, key=lambda task: task.id):
             self.add(task, False)
         self.notify('change', self)
-        
-    # def find_or_create_todo_task(self):
-    #     """Find the special todo task from task_list, remove it from the list and return the task's id.
-    #     If the task doesn't exist, create a new special task and return it's id.
-    #     """
-    #     for i, task in enumerate(self.entities):
-    #         # The special todo task has an empty description. It's not possible for users to create such 
-    #         # kind of task (see NewTaskDialog), so this is a reliable way to identify the task.
-    #         if task.description == "":
-    #             return self.entities.pop(i).id
-
-    #     todo_task = Task.create(description="", tomato=5, long_session=False)
-    #     return todo_task.id
         
     def __iter__(self):
         return iter(self.tasks.values())
@@ -126,7 +95,7 @@ class TodoTask(Task):
         
     @property
     def done(self):
-        "TodoTask's is done if there is no todos unfinished."
+        "A TodoTask is done if there is no unfinished todos."
         return self.unfinished == 0
     
     @done.setter
@@ -147,12 +116,7 @@ class TodoTask(Task):
         # add a new todo item may also change the task's state from "done" to "not done"
         self.notify('task-state-change', self)
         
-    def set_todo_state(self, todo_id, state):
-        "Change the `done` state of the given todo."
-        for todo in self.todos:
-            if todo.id == todo_id:
-                todo.set_done_state(state)
-                break
+    def todo_state_changed(self, todo_id, state):
         self.notify('task-state-change', self)
         
     def set_done(self):
@@ -190,6 +154,7 @@ class Todo(Model, Observable):
     def load_list(cls, **where):
         return cls.query_db(**where)
 
+
 class Session(Model):
     _fields = {
         'start': int,
@@ -197,11 +162,7 @@ class Session(Model):
         'note': str,
         'task': int
     }
-    start = 0
-    end = 0
-    note = ''
-    task = 0
-    
+
     def __init__(self, task, start, end, note):
         self.task = task
         self.start = start
@@ -217,10 +178,6 @@ class Session(Model):
     def load_sessions_for_task(cls, task_id):
         rows = cls.query_db_fields(['start', 'end', 'note'], task=task_id)
         return [cls.format_session(row) for row in rows]
-    
-    @classmethod
-    def insert_session(cls, *args, **kw):
-        cls.create(*args, **kw)
     
     @classmethod
     def load_sessions_of_today(cls):

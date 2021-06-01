@@ -1,19 +1,18 @@
 import tkinter as tk
 from tkinter import ttk
 
-from model import tasks
 from .utils import add_content_frame
 
 class SessionHistoryWindow(tk.Toplevel):
-    def __init__(self, master, sessions, task: tasks.Task):
+    def __init__(self, master, sessions, task_title, show_flag):
         super().__init__(master)
         self.frame = add_content_frame(self)
-        self.title(f'Session History: {task.description}') # type: ignore
+        self.title(f'Session History: {task_title}') # type: ignore
         self.render_sessions(sessions)
         self.transient(master)
         self.bind('<Escape>', lambda e: self.destroy())
         def on_close(e):
-            task._showing_sessions = False
+            show_flag[0] = False
         self.frame.bind('<Destroy>', on_close)
         
     def render_sessions(self, sessions):

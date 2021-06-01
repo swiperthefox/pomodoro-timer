@@ -8,7 +8,7 @@ class TaskDescriptionParserTest(unittest.TestCase):
     def test_task_parser(self):
         today = datetime(2021, 5, 29)
         task = "Task title #3 @Mon *m =. ^parent title^"
-        options = parse_task_description(task, today)
+        options = parse_task_description(task)
         self.assertEqual(options['title'], 'Task title', 'capture task title')
         self.assertEqual(options['tomato'], 3, 'capture tomato')
         self.assertEqual(options['pattern'], '*m', 'capture repeat pattern')

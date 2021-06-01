@@ -1,10 +1,11 @@
 from datetime import datetime
+from tkinter import ttk
+import tkinter as tk
+
 from model.scheduledtask import ScheduledTask
 from .simpledialog import Dialog
 from asset import get_asset_pool
-from tkinter import ttk
-import tkinter as tk
-from model import tasks
+from model import models
 from .utils import grid_layout
 from .tomatobox import TomatoBox
 from taskparser import parse_task_description, parse_date_spec, parse_repeat_pattern
@@ -80,11 +81,7 @@ class NewTaskDialog(Dialog):
         selected_parent_index = self.parent_widget.current()
         parent_id = None if selected_parent_index == 0 else self.tasks[selected_parent_index].id
         parent_title = self.task_option.get('parent', None)
-        if parent_title:
-            for task in self.tasks:
-                if task.description.lower().startswith(parent_title):
-                    parent_id = task.id
-                    break
+        parent_id = self.search_task_title(parent_title)
                 
         title = self.task_option['title']            
         tomato = self.task_option.get('tomato', self.tomatoes)
@@ -107,10 +104,10 @@ class NewTaskDialog(Dialog):
             )
         elif task_type == '.':
             # create todo task
-            self.result = tasks.Todo.create(title, 0)
+            self.result = models.Todo.create(title, 0)
         else:
             # create normal task
-            self.result = tasks.Task.create(
+            self.result = models.Task.create(
                 description = title.capitalize(),
                 tomato = tomato,
                 long_session = task_type == '=',
@@ -118,7 +115,7 @@ class NewTaskDialog(Dialog):
             )
     
     def validate(self):
-        self.task_option = parse_task_description(self.t_entry.get('0.0', tk.END), datetime.today())
+        self.task_option = parse_task_description(self.t_entry.get('0.0', tk.END))
         if len(self.task_option.get('title', '')) == 0:
             self.error_var.set("Task description can't be empty .")
             return False
@@ -127,3 +124,11 @@ class NewTaskDialog(Dialog):
             return False
         self.error_var.set('')
         return True
+
+    def search_task_title(self, title_prefix):
+        if title_prefix:
+            title_prefix = title_prefix.lower()
+            for task in self.tasks:
+                if task.description.lower().startswith(title_prefix):
+                    return task.id
+        return None
