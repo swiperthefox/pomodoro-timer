@@ -56,11 +56,13 @@ appear in any order.
   "==" for long session, "=-" for short session, and "=." for todos.
 
 - ^parent_title^: specifies the parent task. 
-  The first task in the current task list that matches the given
-  `parent_title` will be the parent of this task. A Repeated task can't have parent task: If `*` field
-  is given, this field will be ignored.
+
+  The first task in the current task list that matches the given `parent_title`
+  will be the parent of this task. A Repeated task can't have parent task: If
+  `*` field is given, this field will be ignored.
 
 -!deadline: the deadline of the task
+
   deadline has the same format as @show_time. It's ignored for repeated tasks.
 
 ## Some Notes:
