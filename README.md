@@ -61,7 +61,7 @@ appear in any order.
   will be the parent of this task. A Repeated task can't have parent task: If
   `*` field is given, this field will be ignored.
 
--!deadline: the deadline of the task
+- !deadline: the deadline of the task
 
   deadline has the same format as @show_time. It's ignored for repeated tasks.
 
