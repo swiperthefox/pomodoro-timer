@@ -126,7 +126,7 @@ class TaskListFrame(ttk.Frame):
         subscribe(task, 'task-state-change', on_task_update, title_label)    
         trace(self.running_session_flag, 
             ['write'], 
-            lambda v,i, m: update_start_button_state(v.get()),
+            lambda v,i, m: update_start_button_state(self.running_session_flag.get()),
             title_label)
         
         ##
@@ -205,7 +205,7 @@ class TaskListFrame(ttk.Frame):
         subscribe(todo_task, 'task-state-change', on_task_update, title_label)
         trace(self.running_session_flag, 
             ['write'], 
-            lambda v,i, m: update_start_button_state(v.get()),
+            lambda v,i, m: update_start_button_state(self.running_session_flag.get()),
             title_label)
         
         ## finish up

@@ -20,13 +20,7 @@ def new_task(master, parent_tasks):
         new_task.save_to_db(['last_gen'])
         new_task = new_task.get_task_for_date(today)
     return new_task
-    
-        # if isinstance(new_task, models.Todo):
-        #     self.todo_task.add_todo(new_task)
-        # elif isinstance(new_task, models.Task):
-        #     self.task_list.add(new_task)
-        # else:
-        #     pass # new task for today
+
 
 class NewTaskDialog(Dialog):
     """A dialog for creating a new task."""
@@ -42,6 +36,7 @@ class NewTaskDialog(Dialog):
     # Parent  : [ choose a parent    v]
     # On      : [ date                ]
     # Repeat  : [ repeat pattern      ]
+    # Deadline: [ deadline            ]
     # (optional error messages)
     # 
     
@@ -81,6 +76,10 @@ class NewTaskDialog(Dialog):
         repeat_label = ttk.Label(master, text="Repeat", anchor=tk.W)
         repeat_entry = ttk.Entry(master, textvariable=self.repeat_var)
         
+        self.deadline_var = tk.StringVar()
+        deadline_label = ttk.Label(master, text="Deadline", anchor=tk.W)
+        deadline_entry = ttk.Entry(master, textvariable=self.deadline_var)
+        
         self.error_var = tk.StringVar()
         error_label = ttk.Label(master, textvariable=self.error_var, foreground='red', anchor=tk.W)
         
@@ -90,6 +89,7 @@ class NewTaskDialog(Dialog):
                 [parent_label,         self.parent_widget, self.parent_widget],
                 [date_label,           date_entry,          date_entry ],
                 [repeat_label,          repeat_entry,       repeat_entry],
+                [deadline_label,        deadline_entry,     deadline_entry],
                 [error_label,          error_label,           error_label]]
         grid_layout(master, rows, 0, padx=3, pady=5)
         return self.t_entry
@@ -106,12 +106,15 @@ class NewTaskDialog(Dialog):
         task_type = self.task_option.get('type', self.long_session_var.get())
         onetime_date_spec = self.task_option.get('once', self.date_var.get())
         repeat_spec = self.task_option.get('repeat', self.repeat_var.get())
+        deadline_spec = self.task_option.get('deadline', self.deadline_var.get())
         
+        today = datetime.today()
         # now create the tasks
         if onetime_date_spec or repeat_spec:
             # create a ScheduledTask
-            today = datetime.today()
-            onetime_date = parse_date_spec(onetime_date_spec, today).toordinal()
+            onetime_date = (parse_date_spec(onetime_date_spec, today).toordinal()
+                if onetime_date_spec
+                else None)
             pattern_str = ' '.join(str(i) for i in parse_repeat_pattern(repeat_spec, today))
             
             self.result = ScheduledTask.create(
@@ -121,17 +124,22 @@ class NewTaskDialog(Dialog):
                 once=onetime_date,
                 pattern=pattern_str
             )
-        elif task_type == '.':
-            # create todo task
-            self.result = models.Todo.create(title, 0)
         else:
-            # create normal task
-            self.result = models.Task.create(
-                description = title.capitalize(),
-                tomato = tomato,
-                long_session = task_type == '=',
-                parent = parent_id
-            )
+            deadline = (parse_date_spec(deadline_spec, today).toordinal()
+                if deadline_spec
+                else None)
+            if task_type == '.':
+                # create todo task
+                self.result = models.Todo.create(title, deadline)
+            else:
+                # create normal task
+                self.result = models.Task.create(
+                    description = title.capitalize(),
+                    tomato = tomato,
+                    long_session = task_type == '=',
+                    parent = parent_id,
+                    deadline=deadline
+                )
     
     def validate(self):
         self.task_option = parse_task_description(self.t_entry.get('0.0', tk.END))

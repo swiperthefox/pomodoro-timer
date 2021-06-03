@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS "task" (
 	"long_session"	INTEGER NOT NULL DEFAULT 0,
 	"tomato"	INTEGER NOT NULL DEFAULT 1,
 	"done"	INTEGER NOT NULL DEFAULT 0,
+	"complete_time"	INTEGER,
+	"deadline"	INTEGER,
 	"progress"	INTEGER NOT NULL DEFAULT 0,
 	"parent"    INTEGER REFERENCES task (id) 
 );

@@ -7,7 +7,7 @@ from taskparser import FIRST_DAY, parse_repeat_pattern, parse_date_spec, parse_t
 class TaskDescriptionParserTest(unittest.TestCase):
     def test_task_parser(self):
         today = datetime(2021, 5, 29)
-        task = "Task title #3 @Mon *m =. ^parent title^"
+        task = "Task title. #3 @Mon *m =. ^parent title^"
         options = parse_task_description(task)
         self.assertEqual(options['title'], 'Task title', 'capture task title')
         self.assertEqual(options['tomato'], 3, 'capture tomato')

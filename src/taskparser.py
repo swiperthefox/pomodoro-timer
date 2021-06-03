@@ -8,9 +8,9 @@ def parse_task_description(task_description):
     
     A task can be specified in an "extended task description" format. The format is as follows:
     
-    task_title [#n] [@show_time] [*repeat_pattern] [=duration_type] [^parent title^]
+    task_title. [#n] [@show_time] [*repeat_pattern] [=duration_type] [^parent title^]
     
-    where `task_title` is the description of the task and `n` is the number of session assigned.
+    where `task_title` is the description of the task, it stops at the first period mark('.').
     
     The optional fields are some fields that starts with a few special characters. The fields could
     appear in any order.
@@ -39,16 +39,19 @@ def parse_task_description(task_description):
     - ^parent_title^: specifies the parent task. The first task in current list that matches the given
     `parent_title` will be the parent of this task. Repeated tasks can't have parent task, if `*` field
     is given, this field will be ignored.
+    
+    -!deadline: the deadline of the task
+    deadline has the same format as @show_time. It's ignored for repeated tasks.
     """
     # options are substrings that do not contain spaces, begins with one of the 
     # "@#*="
-    single_word_option = r'[@#*=][\S]+'
+    single_word_option = r'[@#*=!][\S]+'
     #  or the substring that surrounded by "^". 
     multi_word_option = r'\^[^^]+\^'
     
     # title is any substring that starts from beginning and does not contain the 
     # special chars
-    title_pat = '^[^^@*=#]+'
+    title_pat = '^[^.]+'
     
     pattern = f'{single_word_option}|{multi_word_option}|{title_pat}'
     parts = re.findall(pattern, task_description)
@@ -67,6 +70,8 @@ def parse_task_description(task_description):
             options['type'] = option_body
         elif name == '^':
             options['parent'] = part[1:-1].lower()
+        elif name == '!':
+            options['deadline'] = part
         else:
             options['title'] = part.strip()
     return options

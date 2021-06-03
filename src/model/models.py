@@ -17,6 +17,8 @@ class Task(Observable, Model):
         'long_session': bool,
         'progress': int,
         'done': bool,
+        'deadline': int,
+        'complete_time': int,
         'id': int,
         'parent': int
     }
@@ -37,7 +39,10 @@ class Task(Observable, Model):
         
     def set_done(self, flag):
         self.done = flag
-        self.save_to_db()
+        self.complete_time = ( datetime.today().toordinal()
+            if flag
+            else None)
+        self.save_to_db(['done', 'complete_time'])
         if flag:
             for task in self.subtasks:
                 task.set_done(flag)

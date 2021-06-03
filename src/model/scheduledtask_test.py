@@ -2,7 +2,7 @@ import unittest
 from datetime import date
 
 from .scheduledtask import PeriodicScheduler
-from utils import Weekdays
+from dateutils import Weekdays
 
 class PeriodicSchedulerTest(unittest.TestCase):
     "test PeriodicScheduler."
