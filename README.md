@@ -32,7 +32,7 @@ New tasks are created in the new task dialog. The task field of dialog also acce
     
 The task title is the leading text before the first period, followed by some options.
     
-The optional fields are some fields that start with a few special characters. The fields could
+The optional fields are some fields that start with one of the special characters @*=^!. The fields could
 appear in any order.
 
 - @show_time: When to add the task to the task list.
