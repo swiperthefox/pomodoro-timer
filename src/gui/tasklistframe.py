@@ -88,7 +88,7 @@ class TaskListFrame(ttk.Frame):
         start_btn = ttk.Button(self, image=get_image('clock'), 
             command=lambda: self.start_pomodoro_command(task))
             
-        state_var = tk.BooleanVar()
+        state_var = tk.BooleanVar(value=task.done)
         done_btn = ttk.Checkbutton(self, variable=state_var,  
             command=lambda: task.set_done(state_var.get()))
         
