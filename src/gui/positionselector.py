@@ -13,8 +13,9 @@ class PositionSelector(tk.Toplevel):
         self.label.place(x=700, y=700)
         self.bind("<Motion>", self.update_position)
     def update_position(self, e):
-        self.label.place_configure(x=e.x, y=e.y)
-        self.position = (e.x, e.y)
+        x, y = max(0, e.x_root-10), max(0, e.y_root-10)
+        self.label.place_configure(x=x, y=y)
+        self.position = (x, y)
     
     def close(self, e):
         self.destroy()
