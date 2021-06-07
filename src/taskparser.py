@@ -45,13 +45,12 @@ def parse_task_description(task_description):
     """
     # options are substrings that do not contain spaces, begins with one of the 
     # "@#*="
-    single_word_option = r'[@#*=!][\S]+'
+    single_word_option = r'(?<= )[@#*=!][\S]+'
     #  or the substring that surrounded by "^". 
     multi_word_option = r'\^[^^]+\^'
     
-    # title is any substring that starts from beginning and does not contain the 
-    # special chars
-    title_pat = '^[^.]+'
+    # title is the leading string of the task_description, up to a valid option item.
+    title_pat ='^[^@#*=!^]+'
     
     pattern = f'{single_word_option}|{multi_word_option}|{title_pat}'
     parts = re.findall(pattern, task_description)

@@ -44,7 +44,8 @@ class NewTaskDialog(Dialog):
         get_image = get_asset_pool(self).get_image
         
         t_label = ttk.Label(master, text="Task:", anchor=tk.W)
-        self.t_entry = tk.Text(master, width=60, height=2, font=get_asset_pool(self).get_font('normal'))
+        self.t_entry = ttk.Entry(master, width=60)
+        #, font=get_asset_pool(self).get_font('normal'))
         
         c_label = ttk.Label(master, text="Tomatoes:", anchor=tk.W)
         self.tomatoes = 0
@@ -142,11 +143,14 @@ class NewTaskDialog(Dialog):
                 )
     
     def validate(self):
-        self.task_option = parse_task_description(self.t_entry.get('0.0', tk.END))
+        self.task_option = parse_task_description(self.t_entry.get())
         if len(self.task_option.get('title', '')) == 0:
             self.error_var.set("Task description can't be empty .")
             return False
-        if self.tomatoes == 0 and self.task_option.get('tomato', 0) == 0 and self.task_option['type'] != '.':
+
+        if (self.tomatoes == 0 and 
+            self.task_option.get('tomato', 0) == 0 and 
+            self.task_option.get('type', '-') != '.'):
             self.error_var.set("Normal task must specify the number of tomatoes.")
             return False
         self.error_var.set('')
