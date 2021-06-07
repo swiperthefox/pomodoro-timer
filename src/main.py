@@ -22,7 +22,7 @@ class App:
         self.dm = DataManager(db_name)
 
         # gui
-        self.window = tkinter.Tk()
+        self.window = tkinter.Tk(className='Pomodoro Timer')
         self.session_running = tkinter.BooleanVar(value=False)
         render_app_window(self, title, "+700+400")
         self.window.protocol('WM_DELETE_WINDOW', self.on_exit)
@@ -46,14 +46,13 @@ class App:
         self.window.lower()
         self.session_running.set(True)
         
-        window = ProgressWindow(self.window, task.description, work_time, geometry='+1640+3',
+        window = ProgressWindow(self.window, task.description, work_time, geometry=self.config.get_progress_position(),
             keep_on_top=self.config.get_progress_on_top(),
             minimize=self.config.get_minimal_progress_window())
         start_time = int(time.time())
         window.start(lambda: self.end_of_session(task, start_time))
 
     def end_of_session(self, task, start_time):
-        self.session_running.set(False)
         default_audio_alert = "snd/egg_timer.mp3"
         if self.config.use_audio_alert():
             audio.playsound(self.config.get_audio_file() or default_audio_alert, block=True)
@@ -87,6 +86,7 @@ class App:
         window.start(self.show_main_window)
         
     def show_main_window(self):
+        self.session_running.set(False)
         self.window.deiconify()
         keep_main_window_on_top = self.config.get_main_window_on_top()
         self.window.attributes('-topmost', keep_main_window_on_top)

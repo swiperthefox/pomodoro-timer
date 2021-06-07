@@ -6,8 +6,10 @@ class PomodoroTimerConfig(jsonconfig.JsonBasedConfig):
         return self.get_config(['session', s_type, type])
     def get_font_size(self):
         return self.get_config(['appearance', 'font', 'size'])
+    def get_progress_position(self):
+        return self.get_config(['appearance', 'progress_position'])
     def get_progress_on_top(self):
-        return self.get_config(['appearance', 'progress_on_top'])
+        return self.get_config(['appearance', 'progress_window_on_top'])
     def get_minimal_progress_window(self):
         return self.get_config(['appearance', 'minimal_progress_window'])
     def get_main_window_on_top(self):

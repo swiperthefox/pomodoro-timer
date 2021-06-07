@@ -15,7 +15,7 @@ def grid_layout(parent, children_grid, start_row = tk.END, **opt):
      
     means a.grid(row=0, col=0, rowspan=2, columnspan=2), b.grid(row=0,col=2), ....
     
-    if the rows have different length, the last elments of shorter row will span over
+    if the rows have different length, the last element of the shorter rows will span over
     the rest of columns.
     """
     if start_row == tk.END:
@@ -44,14 +44,14 @@ def text_field(master, prompt, initial):
     var = tk.StringVar()
     var.set(initial)
     entry = ttk.Entry(master, textvariable=var)
-    return [label, entry], {'value': var}
+    return [label, entry], var
     
 def boolean_field(master, prompt, info, initial):
     label = ttk.Label(master, text=prompt)
     var = tk.BooleanVar()
     var.set(initial)
     button = ttk.Checkbutton(master, variable=var, text=info)
-    return [label if prompt else button, button], {'value': var}
+    return [label if prompt else button, button], var
     
 def radio_field(master, prompt, options, initial):
     widgets = []
@@ -64,14 +64,14 @@ def radio_field(master, prompt, options, initial):
     for text, value in options:
         button = ttk.Radiobutton(master, text=text, value=value, variable=var)
         widgets.append(button)
-    return widgets, {'value': var}
+    return widgets, var
     
 def number_field(master, prompt, choices, initial):
     label = ttk.Label(master, text=prompt)
     var = tk.IntVar()
     var.set(initial)
     combbox = ttk.Combobox(master, values=choices, textvariable=var, width=4)
-    return [label, combbox], {'value': var}
+    return [label, combbox], var
 
 def add_content_frame(toplevel: tk.Toplevel, **kw):
     """Add a tkk.Frame instance to `toplevel` as its only child.

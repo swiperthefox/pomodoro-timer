@@ -15,7 +15,7 @@
       }
     },
     "appearance": {
-      "screen_size": "1920x1080",
+      "progress_position": "+1440+3",
       "font": {
         "size": 16
       },
@@ -47,6 +47,6 @@
     "font": {
       "size": 14
     },
-    "minimal_progress_window": true
+    "minimal_progress_window": true,
   }
 }

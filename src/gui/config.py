@@ -3,6 +3,7 @@ from tkinter import ttk
 from tkinter import filedialog
 
 from .utils import grid_layout, add_content_frame, number_field, boolean_field, text_field
+from .positionselector import PositionSelector
 
 def open_config_window(master, config):
     config_win = ConfigWindow(master, "Settings", config, grid_opt={'padx': 7, 'pady': 3})
@@ -83,12 +84,12 @@ class ConfigWindow(tk.Toplevel):
             rows = []
             for opt_name, [minv, maxv] in opt_paths[section]:
                 path = ['session', section, opt_name]
-                widget_row, vars = number_field(section_frame, opt_name.capitalize(), list(range(minv, maxv+1, 5)),
+                widget_row, var = number_field(section_frame, opt_name.capitalize(), list(range(minv, maxv+1, 5)),
                     self.app_config.get_config(path))
                 if first_input is None:
                     first_input = widget_row[1]
                 self.on_ok_actions.append(
-                    self.make_callback_func(vars['value'], path)
+                    self.make_callback_func(var, path)
                 )
                 rows.append(widget_row)
             grid_layout(section_frame, rows, start_row=0, **self.grid_opt)
@@ -104,19 +105,27 @@ class ConfigWindow(tk.Toplevel):
         # font size
         font_path = path_root + ['font', 'size']
         font_size = config.get_config(font_path)
-        font_widgets, vars = number_field(nb_page, "Font size", list(range(12,20)), font_size)
+        font_widgets, var = number_field(nb_page, "Font size", list(range(12,20)), font_size)
+        font_widgets.append(None)
         widget_rows.append(font_widgets)
         self.on_ok_actions.append(
-            self.make_callback_func(vars['value'], font_path)
+            self.make_callback_func(var, font_path)
         )
         
         # screen size
-        screen_size_path = path_root + ['screen_size']
-        screen_size = config.get_config(screen_size_path)
-        screen_size_widgets, vars = text_field(nb_page, "Screen Size (width x height)", screen_size)
-        widget_rows.append(screen_size_widgets)
+        progress_pos_path = path_root + ['progress_position']
+        progress_pos = config.get_progress_position()
+        progress_pos_widgets, ppvar = text_field(nb_page, "Progress Label Position (+x+y)", progress_pos)
+        def select_pos():
+            selector = PositionSelector(self)
+            selector.wait_window(selector)
+            x,y = selector.position
+            ppvar.set(f'+{x}+{y}')
+        pp_btn = ttk.Button(nb_page, text="Select", command=select_pos) 
+        progress_pos_widgets.append(pp_btn)
+        widget_rows.append(progress_pos_widgets)
         self.on_ok_actions.append(
-            self.make_callback_func(vars['value'], screen_size_path)
+            self.make_callback_func(ppvar, progress_pos_path)
         )
         
         # three boolean setting:  "progress_window_on_top", "minimal_progress_window", "main_window_on_top"
@@ -126,10 +135,10 @@ class ConfigWindow(tk.Toplevel):
             ["main_window_on_top", "Keep main window on top after session finished?"]]:
             opt_path = path_root + [setting_name]
             opt_value = config.get_config(opt_path)            
-            opt_widget, vars = boolean_field(nb_page, "", prompt, opt_value)
+            opt_widget, var = boolean_field(nb_page, "", prompt, opt_value)
             widget_rows.append(opt_widget)
             self.on_ok_actions.append(
-                self.make_callback_func(var=vars['value'], path=opt_path)
+                self.make_callback_func(var=var, path=opt_path)
             )
        
         grid_layout(nb_page, widget_rows, start_row=0, **self.grid_opt)
@@ -147,10 +156,10 @@ class ConfigWindow(tk.Toplevel):
         for p_name, prompt in opt_list:
             opt_path = path_root + [p_name]
             opt = config.get_config(opt_path)
-            opt_widget, vars = boolean_field(nb_page, "", prompt, opt)
+            opt_widget, var = boolean_field(nb_page, "", prompt, opt)
             widget_rows.append(opt_widget)
             self.on_ok_actions.append(
-                self.make_callback_func(vars['value'], opt_path)
+                self.make_callback_func(var, opt_path)
             )
         
         audio_path = path_root + ['audio_file']
