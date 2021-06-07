@@ -2,11 +2,12 @@ from dataclasses import dataclass, field
 from typing import ClassVar, List, Set
 from datetime import datetime
 import time
-import re
+# import re
+from collections import Counter
 
 from .observable import Observable
 from .noorm import Model
-import db
+# import db
 
 @dataclass
 class Task(Observable, Model):
@@ -51,7 +52,7 @@ class Task(Observable, Model):
     @classmethod
     def load_list(cls, where=None, **kw):
         tasks = cls.query_db(where, **kw)
-        sessions = Session.load_sessions_of_today()
+        sessions = Session.load_session_count_of_today()
         for task in tasks:
             task.progress = sessions.get(task.id, 0)
         return tasks
@@ -60,7 +61,7 @@ class Task(Observable, Model):
     def get_or_create_todo_task(cls):
         todo_data = cls.query_db(description='')
         if not todo_data:
-            return Task.create(description="", tomato=5, long_session=False)
+            return Task.create(description="", tomato=5, long_session=False, parent=None)
         else:
             return todo_data[0]
             
@@ -94,7 +95,7 @@ class TodoTask(Task):
     _topics: ClassVar[Set[str]] = set(['change', 'add', 'task-state-change'])
     
     def __init__(self, task_id):
-        super().__init__(description="Misc. todos", tomato=5) # type: ignore
+        super().__init__(description="Misc. todos", tomato=5, parent=None) # type: ignore
         self.todos = []
         self.id = task_id
         
@@ -176,21 +177,24 @@ class Session(Model):
         
     @staticmethod
     def format_session(session):
-        start, end, note = session
-        return timestamp_to_string(start), timestamp_to_string(end), note
+        task, start, end, note = session
+        return task, timestamp_to_string(start), timestamp_to_string(end), note
     
     @classmethod
     def load_sessions_for_task(cls, task_id):
-        rows = cls.query_db_fields(['start', 'end', 'note'], task=task_id)
+        rows = cls.query_db_fields(['task', 'start', 'end', 'note'], task=task_id)
         return [cls.format_session(row) for row in rows]
     
     @classmethod
-    def load_sessions_of_today(cls):
+    def load_session_history_for_today(cls):
         today = datetime.today()
         start_of_today = datetime(today.year, today.month, today.day, 1, 0, 0).timestamp()
-        sql = 'SELECT task, count(*) FROM session WHERE start > ? GROUP BY task'
-        session_count = db.execute_query(sql, (int(start_of_today),))
-        return {task: c for task, c in session_count}
+        sessions = Session.query_db_fields(['task', 'start', 'end', 'note'], where={'start >': start_of_today})
+        return map(cls.format_session, sessions)
+    
+    @classmethod
+    def load_session_count_of_today(cls):
+        return Counter(s[0] for s in cls.load_session_history_for_today())
 
         
 def timestamp_to_string(timestamp):

@@ -82,15 +82,15 @@ class Model:
         return new_entity
         
     @classmethod
-    def query_db(cls, where_dict=None, **where_more):
-        sql, params = cls._build_query_sql(cls._fields, where_dict, **where_more)   
+    def query_db(cls, where=None, **where_more):
+        sql, params = cls._build_query_sql(cls._fields, where, **where_more)   
         data_list =  db.execute_query(sql, params)
         entities = [cls(**data) for data in data_list]
         return entities
     
     @classmethod
-    def query_db_fields(cls, fields, where_dict=None, **where_more):
-        sql, params = cls._build_query_sql(fields, where_dict, **where_more)
+    def query_db_fields(cls, fields, where=None, **where_more):
+        sql, params = cls._build_query_sql(fields, where, **where_more)
         return db.execute_query(sql, params)
         
     def save_to_db(self, fields = []):

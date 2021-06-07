@@ -16,11 +16,12 @@ class SessionHistoryWindow(tk.Toplevel):
         self.frame.bind('<Destroy>', on_close)
         
     def render_sessions(self, sessions):
-        columns = ('start', 'end', 'note')
+        columns = ('task', 'start', 'end', 'note')
         tree = ttk.Treeview(self.frame, columns=columns)
         tree.grid(row=0, column=0, sticky='wens')
         self.frame.rowconfigure(0,weight=1)
         self.frame.columnconfigure(0,weight=1)
+        tree.column('task', width=40)
         tree.column('start', width=200)
         tree.column('end', width=200)
         tree.column('note', stretch=1)

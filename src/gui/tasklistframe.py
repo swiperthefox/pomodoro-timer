@@ -47,7 +47,7 @@ class TaskListFrame(ttk.Frame):
     def render_header(self):
         
         # Layout: 
-        # [+]  Done  Tasks          Pomodoro
+        # [+]  Done  Tasks          Sessions
         # ---  ----- -------------  ---------
         
         # newTaskBtn handler
@@ -68,9 +68,10 @@ class TaskListFrame(ttk.Frame):
             command=add_task)
         done_label = ttk.Label(self, text="Done")
         title = ttk.Label(self, text = "Task", anchor=tk.CENTER)
-        pomodoro_header = ttk.Label(self, text="Sessions")
-        
-        rows.append([newTaskBtn, done_label, title, pomodoro_header])
+        session_header = ttk.Label(self, text="Sessions")
+        show_sessions_for_today = make_session_history_displayer(self, None)
+        session_header.bind('<Button-1>', show_sessions_for_today)
+        rows.append([newTaskBtn, done_label, title, session_header])
         rows.append([ttk.Separator(self, orient=tk.HORIZONTAL) for i in range(4)])
         
         return rows
@@ -212,12 +213,18 @@ class TaskListFrame(ttk.Frame):
         on_task_update(todo_task)
         return row
 
-def make_session_history_displayer(master, task: models.Task):
+def make_session_history_displayer(master, task: models.Task = None):
     showing = [False]
+    if task:
+        session_loader = lambda: models.Session.load_sessions_for_task(task.id)
+        title = task.description
+    else:
+        session_loader = models.Session.load_session_history_for_today
+        title = "Today"
     def toggle_session_window(e):
         if not showing[0]:
             showing[0] = True
-            sessions = models.Session.load_sessions_for_task(task.id)
-            SessionHistoryWindow(master, sessions, task.description, showing)
+            # sessions = models.Session.load_sessions_for_task(task and task.id)
+            SessionHistoryWindow(master, session_loader(), title, showing)
     return toggle_session_window
   
