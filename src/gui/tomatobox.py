@@ -8,7 +8,7 @@ class TomatoBox(ttk.Frame):
     as parameter.
     """
     def __init__(self, parent, tomato_config, click_handler=None, **keywords):
-        ttk.Frame.__init__(self, parent, takefocus=1, **keywords)
+        ttk.Frame.__init__(self, parent, takefocus=1, border=0, **keywords)
         self.tomatoes = []
         self.handler = click_handler
         for i, tomato in enumerate(tomato_config):

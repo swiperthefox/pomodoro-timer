@@ -95,8 +95,7 @@ class TaskListFrame(ttk.Frame):
         
         title_label = ttk.Label(self, text=' '*indent + task.description, anchor=tk.W)
         
-        tomato_list = ([get_image('tomato_red')]*task.progress + 
-            [get_image('tomato_green')]*task.remaining_pomodoro())
+        tomato_list = get_tomato_list_for_task(self, task)
         show_session_history = make_session_history_displayer(self, task)
         # tk does not propagate events from child widget to its master, so we need to bind the action
         # to both the tomato images and the container.
@@ -115,9 +114,7 @@ class TaskListFrame(ttk.Frame):
             font_type = 'strikeout' if task.done else 'normal'
             title_label.config(font = self.asset_pool.get_font(font_type))
             update_start_button_state(self.running_session_flag.get())
-            tomato_list = ([get_image('tomato_red')]*task.progress + 
-                [get_image('tomato_green')]*task.remaining_pomodoro())
-            tomato_box.config(tomatoes=tomato_list)
+            tomato_box.config(tomatoes=get_tomato_list_for_task(self, task))
             
         # observer for the changes of `running_session_flag`
         def update_start_button_state(has_running_session):
@@ -173,8 +170,7 @@ class TaskListFrame(ttk.Frame):
         title_label = ttk.Label(self, text=todo_task.description)
         title_label.bind('<1>', show_todo_window)
         
-        tomato_list = ([get_image('tomato_red')]*todo_task.progress + 
-            [get_image('tomato_green')]*todo_task.remaining_pomodoro())
+        tomato_list = get_tomato_list_for_task(self, todo_task)
         show_session_history = make_session_history_displayer(self, todo_task)
         # tk does not propagate events from child widget to its master, so we need to bind the action
         # to both the tomato images and the container.
@@ -194,9 +190,7 @@ class TaskListFrame(ttk.Frame):
             """
             update_start_button_state(self.running_session_flag.get())
             self.todo_count_var.set(task.unfinished)
-            tomato_list = ([get_image('tomato_red')]*task.progress + 
-                [get_image('tomato_green')]*task.remaining_pomodoro())
-            tomato_box.config(tomatoes=tomato_list)
+            tomato_box.config(tomatoes=get_tomato_list_for_task(self, task))
             
         # observer for change of `running_session_flag`
         def update_start_button_state(has_running_session):
@@ -228,3 +222,8 @@ def make_session_history_displayer(master, task: models.Task = None):
             SessionHistoryWindow(master, session_loader(), title, showing, show_first_column=task is None)
     return toggle_session_window
   
+def get_tomato_list_for_task(w, task):
+    get_image = get_asset_pool(w).get_image
+    suffix = '' if task.long_session else '_small'
+    return ([get_image('tomato_red'+suffix)]*task.progress + 
+        [get_image('tomato_green'+suffix)]*task.remaining_pomodoro())

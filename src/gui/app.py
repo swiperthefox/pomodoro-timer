@@ -36,10 +36,11 @@ def render_app_window(app, title="", geom=""):
     
     #    images
     asset_pool.add_img('tomato_red', AssetPool.COLOR, 'image/tomato_red.png')
-    asset_pool.add_img('tomato_bw', AssetPool.COLOR, 'image/tomato_bw.png')
     asset_pool.add_img('tomato_dim', AssetPool.COLOR, 'image/tomato_dim.png')
-    asset_pool.add_img('new_icon', AssetPool.COLOR, 'image/plus.png')
     asset_pool.add_img('tomato_green', AssetPool.COLOR, 'image/tomato_green.png')
+    asset_pool.add_img('tomato_red_small', AssetPool.COLOR, 'image/tomato_red_small.png')
+    asset_pool.add_img('tomato_green_small', AssetPool.COLOR, 'image/tomato_green_small.png')
+    asset_pool.add_img('new_icon', AssetPool.COLOR, 'image/plus.png')
     asset_pool.add_img('clock', AssetPool.COLOR, 'image/clock.png')
     asset_pool.add_img('setting', AssetPool.COLOR, 'image/setting.png')
     asset_pool.add_img('doc', AssetPool.COLOR, 'image/doc.png')
