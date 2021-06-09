@@ -218,8 +218,8 @@ def make_session_history_displayer(master, task: models.Task = None):
     def toggle_session_window(e):
         if not showing[0]:
             showing[0] = True
-            # sessions = models.Session.load_sessions_for_task(task and task.id)
-            SessionHistoryWindow(master, session_loader(), title, showing, show_first_column=task is None)
+            daily = task is None
+            SessionHistoryWindow(master, session_loader(), title, showing, daily)
     return toggle_session_window
   
 def get_tomato_list_for_task(w, task):

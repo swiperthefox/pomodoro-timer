@@ -176,28 +176,33 @@ class Session(Model):
         self.end = end
         self.note = note
         
-    @staticmethod
-    def format_session(session):
-        task, start, end, note = session
-        return str(task), timestamp_to_string(start), timestamp_to_string(end), note
-    
     @classmethod
     def load_sessions_for_task(cls, task_id):
-        rows = cls.query_db_fields(['task', 'start', 'end', 'note'], task=task_id)
-        return [cls.format_session(row) for row in rows]
+        def _format_task_session(session):
+            start, end, note = session
+            time_format = "%Y-%m-%d %H:%M"
+            return timestamp_to_string(start, time_format), timestamp_to_string(end, time_format), note
+        rows = cls.query_db_fields(['start', 'end', 'note'], task=task_id)
+        return [_format_task_session(row) for row in rows]
     
     @classmethod
     def load_session_history_for_today(cls):
+        def _format_daily_session(session):
+            task, start, end, note = session
+            time_format = "%H:%M"
+            return timestamp_to_string(start, time_format), timestamp_to_string(end, time_format), str(task) or "Misc. todos", note
+        
         today = datetime.today()
         start_of_today = datetime(today.year, today.month, today.day, 1, 0, 0).timestamp()
-        sql = "SELECT t.description, s.start, s.end, s.note FROM session as s, task as t WHERE s.start > ? AND s.task = t.id"
+        sql = """SELECT t.description, s.start, s.end, s.note 
+                FROM session as s, task as t 
+                WHERE s.start > ? AND s.task = t.id"""
         sessions = Session.execute_query(sql, (start_of_today,))
-        # sessions = Session.query_db_fields(['task', 'start', 'end', 'note'], where={'start >': start_of_today})
-        return map(cls.format_session, sessions)
+        return [_format_daily_session(s) for s in sessions]
     
     @classmethod
     def load_session_count_of_today(cls):
         return Counter(s[0] for s in cls.load_session_history_for_today())
         
-def timestamp_to_string(timestamp):
-    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
+def timestamp_to_string(timestamp, time_format):
+    return datetime.fromtimestamp(timestamp).strftime(time_format)
