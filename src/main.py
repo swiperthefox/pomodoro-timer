@@ -82,7 +82,7 @@ class App:
             break_message_template % break_time,
             break_time,
             '+600+280',
-            keep_on_top=self.config.get_progress_on_top())
+            keep_on_top=False)
         window.start(self.show_main_window)
         
     def show_main_window(self):
