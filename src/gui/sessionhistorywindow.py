@@ -16,8 +16,12 @@ class SessionHistoryWindow(tk.Toplevel):
         self.frame.bind('<Destroy>', on_close)
         
     def render_sessions(self, sessions, show_first_column):
+        def truncated(session_list):
+            for session in session_list:
+                yield (str(session[0])[:20], *session[1:])
         if show_first_column:
             columns = ('task', 'start', 'end', 'note')
+            sessions = truncated(sessions)
         else:
             columns = ('start', 'end', 'note')
             sessions = [session[1:] for session in sessions]
