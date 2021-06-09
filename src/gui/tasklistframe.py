@@ -225,6 +225,6 @@ def make_session_history_displayer(master, task: models.Task = None):
         if not showing[0]:
             showing[0] = True
             # sessions = models.Session.load_sessions_for_task(task and task.id)
-            SessionHistoryWindow(master, session_loader(), title, showing)
+            SessionHistoryWindow(master, session_loader(), title, showing, show_first_column=task is None)
     return toggle_session_window
   

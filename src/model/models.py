@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from tkinter.constants import S
 from typing import ClassVar, List, Set
 from datetime import datetime
 import time
@@ -178,7 +179,7 @@ class Session(Model):
     @staticmethod
     def format_session(session):
         task, start, end, note = session
-        return task, timestamp_to_string(start), timestamp_to_string(end), note
+        return str(task), timestamp_to_string(start), timestamp_to_string(end), note
     
     @classmethod
     def load_sessions_for_task(cls, task_id):
@@ -189,13 +190,14 @@ class Session(Model):
     def load_session_history_for_today(cls):
         today = datetime.today()
         start_of_today = datetime(today.year, today.month, today.day, 1, 0, 0).timestamp()
-        sessions = Session.query_db_fields(['task', 'start', 'end', 'note'], where={'start >': start_of_today})
+        sql = "SELECT t.description, s.start, s.end, s.note FROM session as s, task as t WHERE s.start > ? AND s.task = t.id"
+        sessions = Session.execute_query(sql, (start_of_today,))
+        # sessions = Session.query_db_fields(['task', 'start', 'end', 'note'], where={'start >': start_of_today})
         return map(cls.format_session, sessions)
     
     @classmethod
     def load_session_count_of_today(cls):
         return Counter(s[0] for s in cls.load_session_history_for_today())
-
         
 def timestamp_to_string(timestamp):
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")

@@ -80,6 +80,10 @@ class Model:
         new_entity = cls(*args, **kw)
         new_entity.save_to_db()
         return new_entity
+    
+    @staticmethod
+    def execute_query(sql, parameters):
+        return db.execute_query(sql, parameters)
         
     @classmethod
     def query_db(cls, where=None, **where_more):
